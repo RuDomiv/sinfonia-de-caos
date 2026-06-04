@@ -303,7 +303,7 @@ export class VisualManager {
     const accent = this._accent();
 
     // Polvo cósmico: más denso con la intensidad.
-    this.dust.setFrequency(Phaser.Math.Linear(170, 22, i));
+    this.dust.setFrequency(Phaser.Math.Linear(120, 10, i));
     this.dust.particleTint = accent;
 
     // Grading sutil + calor en el drop.
@@ -326,8 +326,16 @@ export class VisualManager {
     // Cometas/estrellas fugaces SIEMPRE (mas frecuentes con intensidad) -> fondo vivo.
     this._cometTimer -= dt;
     if (this._cometTimer <= 0) {
-      this._cometTimer = Phaser.Math.FloatBetween(0.35, 1.3) * (1 - i * 0.55);
+      this._cometTimer = Phaser.Math.FloatBetween(0.3, 1.1) * (1 - i * 0.6);
       this._spawnComet();
+      if (v > 0.5) this._spawnComet();
+    }
+    // Galaxias y agujeros negros de fondo (mezcla, MUCHOS en el drop).
+    if (this._decorTimer == null) this._decorTimer = 0;
+    this._decorTimer -= dt;
+    if (this._decorTimer <= 0) {
+      this._decorTimer = Phaser.Math.FloatBetween(0.5, 1.4) * (v > 0.5 ? 0.4 : 1);
+      this._spawnDecor(v);
     }
   }
 
@@ -355,6 +363,23 @@ export class VisualManager {
       spr.setScale(spr.scaleX * (1 + this._pulse * 0.28));
       spr.x += (Math.random() - 0.5) * this._pulse * 6;
       spr.y += (Math.random() - 0.5) * this._pulse * 6;
+    }
+  }
+
+  // Galaxias espirales y mini agujeros negros que aparecen/desaparecen en el fondo.
+  _spawnDecor(v) {
+    const s = this.scene;
+    const x = Phaser.Math.Between(0, this.W), y = Phaser.Math.Between(0, this.H);
+    if (Math.random() < 0.4) {
+      const h = s.add.image(x, y, 'vm_hole').setDepth(-26)
+        .setScale(Phaser.Math.FloatBetween(0.25, 0.75)).setAlpha(0);
+      s.tweens.add({ targets: h, alpha: 0.55, duration: 1000, yoyo: true, hold: 1400, onComplete: () => h.destroy() });
+      s.tweens.add({ targets: h, angle: 360, duration: Phaser.Math.Between(5000, 11000), repeat: -1 });
+    } else {
+      const g = s.add.image(x, y, 'vm_neb_vivid').setDepth(-27).setBlendMode('ADD')
+        .setScale(Phaser.Math.FloatBetween(0.9, 2.2)).setAlpha(0);
+      g.setTint(Phaser.Utils.Array.GetRandom([0xff5ea8, 0x6a8bff, 0x9af6ff, 0xffd24a, 0xb96aff]));
+      s.tweens.add({ targets: g, alpha: 0.35 + 0.3 * v, angle: Phaser.Math.Between(-50, 50), duration: 1500, yoyo: true, hold: 1700, onComplete: () => g.destroy() });
     }
   }
 

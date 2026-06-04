@@ -25,7 +25,7 @@ export const CONFIG = {
 
   // --- Estabilidad (condición de derrota) ---
   stabilityMax: 100,
-  collisionDamage: 17,     // estabilidad perdida por golpe (mas duro)
+  collisionDamage: 21,     // estabilidad perdida por golpe (MAS DURO)
   stabilityRegen: 4,       // estabilidad recuperada por segundo (menos perdon)
 
   // --- Puntaje ---
@@ -45,10 +45,10 @@ export const CONFIG = {
 
   // --- DIFICULTAD (escala con la intensidad; sube fuerte en el DROP) ---
   diff: {
-    spawnStart: 1.6,   // MENOS objetos al inicio
-    spawnEnd: 0.55,    // MENOS objetos al final (pero grandes y dificiles)
-    zSpeedStart: 0.8,  // mas LENTO al inicio
-    zSpeedEnd: 2.6,    // mas LENTO al final
+    spawnStart: 1.1,   // mas objetos
+    spawnEnd: 0.3,     // MUCHOS objetos al final (mas dificil)
+    zSpeedStart: 1.0,  // velocidad inicio
+    zSpeedEnd: 3.6,    // mas RAPIDO al final
     exponent: 1.7,     // >1 = la dificultad se dispara cerca del final
     orbInterval: 1.5,  // segundos entre orbes
   },

@@ -169,7 +169,7 @@ export class AudioManager {
     // ---------- MIX DE CAPAS (suaves transiciones) ----------
 
     // Kick: presente desde el inicio, MUCHO más fuerte en drop.
-    const kickVol = isDrop ? 1.1 : 0.55 + state.intensity * 0.3;
+    const kickVol = isDrop ? 1.35 : 0.6 + state.intensity * 0.35;
     this.kickBus.gain.setTargetAtTime(kickVol, now, 0.08);
 
     // Hi-hats: entran cuando intensity > 0.12.
@@ -197,7 +197,7 @@ export class AudioManager {
     this.leadBus.gain.setTargetAtTime(leadVol, now, 0.15);
 
     // Sub-bass: MASIVO en drop, nada antes (excepto un fizz al final del build).
-    const subVol = isDrop ? 0.55 : (state.progress > 0.46 ? 0.08 : 0);
+    const subVol = isDrop ? 0.95 : (state.progress > 0.4 ? 0.12 : 0);
     this.subGain.gain.setTargetAtTime(subVol, now, 0.15);
 
     // ---------- RISER (últimos 8s del build-up) ----------
@@ -216,7 +216,7 @@ export class AudioManager {
 
     // ---------- DISTORSIÓN POR GLITCH ----------
     const glitchAttn = 1 - state.glitch * 0.4;
-    const masterTarget = (isDrop ? 1.3 : 0.95) * glitchAttn;
+    const masterTarget = (isDrop ? 1.55 : 1.1) * glitchAttn;
     this.master.gain.setTargetAtTime(masterTarget, now, 0.04);
 
     // ---------- SECUENCIADOR ----------
