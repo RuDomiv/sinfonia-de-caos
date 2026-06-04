@@ -118,20 +118,28 @@ export class VisualManager {
     g.generateTexture(key, W, H); g.destroy();
   }
 
-  // Agujero negro: glow morado + anillo de acreción + núcleo oscuro.
+  // Agujero negro pixel-art: disco de acrecion (maroon->rojo->naranja->amarillo),
+  // anillo de fotones brillante, horizonte negro y dos jets de luz.
   _blackHoleTexture(key, S) {
-    if (this.scene.textures.exists(key)) return;
+    this._replace(key);
     const c = S / 2, g = this._newG();
-    for (let r = c; r > 70; r -= 3) { g.fillStyle(0x6a2cff, 0.025); g.fillCircle(c, c, r); }
-    g.lineStyle(16, 0xffae3b, 0.95); g.strokeCircle(c, c, 70);
-    g.lineStyle(8, 0x66e0ff, 0.9); g.strokeCircle(c, c, 54);
-    g.lineStyle(6, 0xff5ea8, 0.7); g.strokeCircle(c, c, 84);
-    g.fillStyle(0x000000, 1); g.fillCircle(c, c, 48);
-    // arcos brillantes para que se note el giro
-    for (const ang of [0.4, 2.3, 4.1]) {
-      g.fillStyle(0xffffff, 0.8);
-      g.fillCircle(c + Math.cos(ang) * 70, c + Math.sin(ang) * 70, 6);
-    }
+    const E = (w, h, col, a = 1) => { g.fillStyle(col, a); g.fillEllipse(c, c, w, h); };
+    // Jets: haces claros que cruzan el centro y sobresalen del disco.
+    g.fillStyle(0xfff3c8, 0.4); g.fillRect(c - 5, 4, 10, S - 8);
+    g.fillStyle(0xfffbe8, 0.85); g.fillRect(c - 2, 12, 4, S - 24);
+    // Disco de acrecion (de afuera hacia adentro).
+    E(S * 0.97, S * 0.42, 0x240910);
+    E(S * 0.88, S * 0.37, 0x4d0d1a);
+    E(S * 0.78, S * 0.32, 0x7e1222);
+    E(S * 0.67, S * 0.27, 0xb91f2b);
+    E(S * 0.56, S * 0.225, 0xe8401f);
+    E(S * 0.46, S * 0.185, 0xff7a18);
+    E(S * 0.37, S * 0.15, 0xffb22e);
+    E(S * 0.30, S * 0.12, 0xffd84a);
+    E(S * 0.25, S * 0.10, 0xfff0b0);
+    // Anillo de fotones + horizonte de sucesos (negro).
+    E(S * 0.205, S * 0.165, 0xffe79a);
+    g.fillStyle(0x000000, 1); g.fillEllipse(c, c, S * 0.17, S * 0.135);
     g.generateTexture(key, S, S); g.destroy();
   }
 
@@ -330,13 +338,15 @@ export class VisualManager {
       this._spawnComet();
       if (v > 0.5) this._spawnComet();
     }
-    // Galaxias y agujeros negros de fondo (mezcla, MUCHOS en el drop).
+    // Galaxias de fondo que cruzan lentamente (parallax).
     if (this._decorTimer == null) this._decorTimer = 0;
     this._decorTimer -= dt;
     if (this._decorTimer <= 0) {
-      this._decorTimer = Phaser.Math.FloatBetween(0.5, 1.4) * (v > 0.5 ? 0.4 : 1);
+      this._decorTimer = Phaser.Math.FloatBetween(0.6, 1.6) * (v > 0.5 ? 0.5 : 1);
       this._spawnDecor(v);
     }
+    // Agujeros negros ESTATICOS que atraen un poco a la nave (se puede escapar).
+    this._updateHoles(dt, v);
   }
 
   // Da a cada planeta color/escala/giro propios y un hitbox circular justo.
@@ -366,29 +376,67 @@ export class VisualManager {
     }
   }
 
-  // Cuerpos celestes que CRUZAN el fondo lentamente (parallax = sensacion de viaje real).
-  // Galaxias espirales y agujeros negros lejanos, no manchas al azar.
+  // Galaxias espirales que CRUZAN el fondo lentamente (parallax = viaje real).
   _spawnDecor(v) {
     const s = this.scene;
     const fromLeft = Math.random() < 0.5;
     const y = Phaser.Math.Between(0, this.H);
-    const startX = fromLeft ? -160 : this.W + 160;
-    const endX = fromLeft ? this.W + 160 : -160;
-    const dur = Phaser.Math.Between(9000, 16000); // lento => lejano
-    let obj;
-    if (Math.random() < 0.35) {
-      obj = s.add.image(startX, y, 'vm_hole').setDepth(-26)
-        .setScale(Phaser.Math.FloatBetween(0.3, 0.85)).setAlpha(0);
-      s.tweens.add({ targets: obj, angle: 360, duration: Phaser.Math.Between(6000, 12000), repeat: -1 });
-    } else {
-      obj = s.add.image(startX, y, 'vm_neb_vivid').setDepth(-27).setBlendMode('ADD')
-        .setScale(Phaser.Math.FloatBetween(1.0, 2.4)).setAlpha(0);
-      obj.setTint(Phaser.Utils.Array.GetRandom([0xff5ea8, 0x6a8bff, 0x9af6ff, 0xffd24a, 0xb96aff, 0x7cffb2]));
-      s.tweens.add({ targets: obj, angle: obj.angle + Phaser.Math.Between(20, 60), duration: dur });
+    const startX = fromLeft ? -180 : this.W + 180;
+    const endX = fromLeft ? this.W + 180 : -180;
+    const dur = Phaser.Math.Between(10000, 17000); // lento => lejano
+    const g = s.add.image(startX, y, 'vm_neb_vivid').setDepth(-27).setBlendMode('ADD')
+      .setScale(Phaser.Math.FloatBetween(1.0, 2.4)).setAlpha(0);
+    g.setTint(Phaser.Utils.Array.GetRandom([0xff5ea8, 0x6a8bff, 0x9af6ff, 0xffd24a, 0xb96aff, 0x7cffb2]));
+    s.tweens.add({ targets: g, angle: g.angle + Phaser.Math.Between(20, 60), duration: dur });
+    s.tweens.add({ targets: g, x: endX, duration: dur, ease: 'Linear', onComplete: () => g.destroy() });
+    s.tweens.add({ targets: g, alpha: 0.35 + 0.3 * v, duration: dur * 0.3, yoyo: true, hold: dur * 0.4 });
+  }
+
+  // Agujeros negros ESTATICOS (no se trasladan): solo giran, brillan y ATRAEN a la nave.
+  _spawnHole(v) {
+    const s = this.scene, m = 150;
+    const x = Phaser.Math.Between(m, this.W - m);
+    const y = Phaser.Math.Between(m, this.H - m);
+    const spr = s.add.image(x, y, 'vm_hole').setDepth(40).setAlpha(0)
+      .setScale(Phaser.Math.FloatBetween(0.55, 1.0)).setAngle(Phaser.Math.Between(-32, -12));
+    s.tweens.add({ targets: spr, alpha: 1, duration: 700 });
+    this._holes.push({
+      spr, x, y, t: 0,
+      life: Phaser.Math.FloatBetween(5.5, 8.5),
+      spin: Phaser.Math.FloatBetween(18, 40),
+      radius: 320, pull: 200,
+    });
+  }
+
+  // Atrae un poco a la nave hacia cada agujero (la nave SIEMPRE puede escapar).
+  _updateHoles(dt, v) {
+    if (!this._holes) this._holes = [];
+    if (this._holeTimer == null) this._holeTimer = 3;
+    const maxHoles = v > 0.5 ? 3 : 2;
+    this._holeTimer -= dt;
+    if (this._holeTimer <= 0 && this._holes.length < maxHoles) {
+      this._holeTimer = Phaser.Math.FloatBetween(4, 8) * (v > 0.5 ? 0.6 : 1);
+      this._spawnHole(v);
     }
-    const maxA = (obj.texture.key === 'vm_hole') ? 0.6 : 0.35 + 0.3 * v;
-    s.tweens.add({ targets: obj, x: endX, duration: dur, ease: 'Linear', onComplete: () => obj.destroy() });
-    s.tweens.add({ targets: obj, alpha: maxA, duration: dur * 0.3, yoyo: true, hold: dur * 0.4 });
+    const p = this.scene.player;
+    for (let k = this._holes.length - 1; k >= 0; k--) {
+      const h = this._holes[k];
+      h.t += dt;
+      h.spr.angle += h.spin * dt;
+      if (p && h.t < h.life) {
+        const dx = h.x - p.x, dy = h.y - p.y;
+        const dist = Math.hypot(dx, dy) || 1;
+        if (dist < h.radius) {
+          const strength = (1 - dist / h.radius) * h.pull;
+          p.x += (dx / dist) * strength * dt;
+          p.y += (dy / dist) * strength * dt;
+        }
+      }
+      if (h.t >= h.life) {
+        h.spr.setAlpha(Math.max(0, h.spr.alpha - dt * 1.1));
+        if (h.spr.alpha <= 0.02) { h.spr.destroy(); this._holes.splice(k, 1); }
+      }
+    }
   }
 
   // Estrella fugaz que cruza el fondo de derecha a izquierda.
