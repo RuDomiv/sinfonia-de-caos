@@ -62,10 +62,17 @@ export class VisualManager {
     this._nebulaTexture('vm_neb_vivid', NEB_VIVID, 34, 0.85);
     this._blackHoleTexture('vm_hole', 256);
 
-    // Reemplazo de placeholders del Motor por arte galáctico.
-    this._alienShipTexture('ship');   // nave alienígena
-    this._planetTexture('obstacle');  // planeta (se tiñe por instancia)
+    // Reemplazo de placeholders del Motor por arte 8-bit.
+    this._alienShipTexture('ship');   // nave 8-bit (estilo arcade)
+    this._planetTexture('obstacle');  // fallback del Motor
     this._orbStarTexture('orb');      // estrella/orbe dorado
+    // Variantes de obstaculos 8-bit (se asignan al azar por instancia).
+    this._pixelPlanetTexture('vm_planet');
+    this._pixelAsteroidTexture('vm_asteroid');
+    this._pixelSupernovaTexture('vm_supernova');
+    this._pixelWreckTexture('vm_wreck');
+    this._pixelCreatureTexture('vm_creature');
+    this._obsKeys = ['vm_planet', 'vm_asteroid', 'vm_supernova', 'vm_wreck', 'vm_creature'];
   }
 
   _newG() { return this.scene.make.graphics({ x: 0, y: 0, add: false }); }
@@ -128,21 +135,66 @@ export class VisualManager {
     g.generateTexture(key, S, S); g.destroy();
   }
 
-  // Nave alienígena: platillo con cúpula y luces.
+  // Nave 8-bit estilo arcade (gris, cabina azul, acentos rojos, motor amarillo).
   _alienShipTexture(key) {
     this._replace(key);
-    const W = 40, H = 26, g = this._newG();
-    // estela/glow inferior
-    g.fillStyle(0x00ffcc, 0.25); g.fillEllipse(W / 2, H / 2 + 4, W, 12);
-    // cuerpo del platillo
-    g.fillStyle(0x8fa6c8, 1); g.fillEllipse(W / 2, H / 2 + 3, W, 13);
-    g.fillStyle(0x5e7396, 1); g.fillEllipse(W / 2, H / 2 + 6, W, 7);
-    // cúpula
-    g.fillStyle(0x9af6ff, 0.95); g.fillEllipse(W / 2, H / 2 - 2, 18, 16);
-    g.fillStyle(0xd9ffff, 0.9); g.fillCircle(W / 2 - 2, H / 2 - 4, 3);
-    // luces
-    for (const lx of [10, 20, 30]) { g.fillStyle(0xfff35e, 1); g.fillCircle(lx, H / 2 + 4, 1.6); }
-    g.generateTexture(key, W, H); g.destroy();
+    const px = 4, g = this._newG();
+    const R = (x, y, w, h, c) => { g.fillStyle(c, 1); g.fillRect(x * px, y * px, w * px, h * px); };
+    const H = 0xb8c0cc, H2 = 0x8a93a3, D = 0x4a4f5a, COCK = 0x32b6ff, RED = 0xd83a4a, YEL = 0xffe23a;
+    R(6, 0, 1, 2, D);                 // nariz
+    R(5, 2, 3, 2, H2);
+    R(6, 3, 1, 1, RED);               // luz frontal
+    R(4, 4, 5, 5, H);                 // cuerpo
+    R(5, 5, 3, 2, COCK);              // cabina
+    R(4, 8, 5, 1, D);
+    R(2, 5, 2, 4, H2); R(9, 5, 2, 4, H2);   // alas
+    R(2, 4, 1, 1, D); R(10, 4, 1, 1, D);     // puntas
+    R(3, 6, 1, 1, RED); R(9, 6, 1, 1, RED);  // acentos
+    R(1, 7, 1, 3, H2); R(11, 7, 1, 3, H2);   // alas exteriores
+    R(5, 9, 3, 2, RED);               // motor
+    R(6, 11, 1, 1, YEL); R(6, 12, 1, 1, YEL); // estela
+    g.generateTexture(key, 13 * px, 14 * px); g.destroy();
+  }
+
+  // Helper de pixel-art: dibuja en una grilla escalada por px.
+  _px(g, px) { return (x, y, w, h, c) => { g.fillStyle(c, 1); g.fillRect(x * px, y * px, w * px, h * px); }; }
+
+  _pixelPlanetTexture(key) {
+    this._replace(key); const px = 4, g = this._newG(), R = this._px(g, px);
+    const A = 0x4ad6ff, B = 0x2a86c8, C = 0xbfeaff;
+    R(3,1,6,1,A);R(2,2,8,1,A);R(1,3,10,4,A);R(2,7,8,1,A);R(3,8,6,1,A);
+    R(4,3,4,2,C);R(2,5,3,1,B);R(6,6,4,1,B);R(0,4,12,1,0xffe23a);
+    g.generateTexture(key, 12 * px, 10 * px); g.destroy();
+  }
+  _pixelAsteroidTexture(key) {
+    this._replace(key); const px = 4, g = this._newG(), R = this._px(g, px);
+    const A = 0x9a8f80, B = 0x6f6457, C = 0xc9bfae;
+    R(3,1,5,1,A);R(2,2,7,1,A);R(1,3,9,4,A);R(2,7,7,1,A);R(4,8,4,1,A);
+    R(3,2,2,2,C);R(6,4,2,2,B);R(2,5,2,1,B);R(7,6,2,1,B);R(4,5,1,1,B);
+    g.generateTexture(key, 11 * px, 10 * px); g.destroy();
+  }
+  _pixelSupernovaTexture(key) {
+    this._replace(key); const px = 4, g = this._newG(), R = this._px(g, px);
+    const Y = 0xffe23a, O = 0xff7a1a, W = 0xffffff;
+    R(5,0,1,2,Y);R(5,9,1,2,Y);R(0,5,2,1,Y);R(9,5,2,1,Y);
+    R(1,1,1,1,O);R(9,1,1,1,O);R(1,9,1,1,O);R(9,9,1,1,O);
+    R(3,3,5,5,O);R(4,2,3,1,O);R(2,4,1,3,O);R(8,4,1,3,O);R(4,8,3,1,O);
+    R(4,4,3,3,Y);R(5,5,1,1,W);
+    g.generateTexture(key, 11 * px, 11 * px); g.destroy();
+  }
+  _pixelWreckTexture(key) {
+    this._replace(key); const px = 4, g = this._newG(), R = this._px(g, px);
+    const A = 0x8a93a3, B = 0x4a4f5a;
+    R(2,2,7,3,A);R(1,3,1,1,A);R(9,3,1,1,A);R(3,5,5,1,B);R(2,1,2,1,B);R(6,1,2,1,A);
+    R(4,3,1,1,0xd83a4a);R(7,2,1,1,0x32b6ff);R(5,5,1,2,B);R(8,4,2,1,B);
+    g.generateTexture(key, 11 * px, 8 * px); g.destroy();
+  }
+  _pixelCreatureTexture(key) {
+    this._replace(key); const px = 4, g = this._newG(), R = this._px(g, px);
+    const A = 0xff5ea8, B = 0xb96aff, E = 0x2af0c0;
+    R(3,0,4,1,A);R(2,1,6,2,A);R(1,3,8,2,A);R(3,2,1,1,E);R(6,2,1,1,E);
+    R(2,5,1,3,B);R(4,5,1,4,B);R(6,5,1,4,B);R(8,5,1,3,B);R(5,5,1,3,B);R(7,5,1,3,B);
+    g.generateTexture(key, 10 * px, 9 * px); g.destroy();
   }
 
   // Planeta claro (para que el tinte por instancia lo coloree) con anillo.
@@ -251,7 +303,7 @@ export class VisualManager {
     const accent = this._accent();
 
     // Polvo cósmico: más denso con la intensidad.
-    this.dust.setFrequency(Phaser.Math.Linear(260, 50, i));
+    this.dust.setFrequency(Phaser.Math.Linear(170, 22, i));
     this.dust.particleTint = accent;
 
     // Grading sutil + calor en el drop.
@@ -271,12 +323,11 @@ export class VisualManager {
     this._decorateObstacles(dt);
 
     // Cerca de la meta: cometas / estrellas fugaces.
-    if (state.progress > 0.85) {
-      this._cometTimer -= dt;
-      if (this._cometTimer <= 0) {
-        this._cometTimer = Phaser.Math.FloatBetween(0.5, 1.1);
-        this._spawnComet();
-      }
+    // Cometas/estrellas fugaces SIEMPRE (mas frecuentes con intensidad) -> fondo vivo.
+    this._cometTimer -= dt;
+    if (this._cometTimer <= 0) {
+      this._cometTimer = Phaser.Math.FloatBetween(0.35, 1.3) * (1 - i * 0.55);
+      this._spawnComet();
     }
   }
 
@@ -291,13 +342,19 @@ export class VisualManager {
       if (!spr || !spr.setTint) continue;
       if (!spr._vmDecor) {
         spr._vmDecor = true;
-        spr.setTint(Phaser.Utils.Array.GetRandom(PLANET_COLORS));
-        spr._spin = Phaser.Math.FloatBetween(-1.4, 1.4);
-        // No tocamos la escala: el Motor la controla cada frame (perspectiva).
+        if (this._obsKeys && this._obsKeys.length) {
+          spr.setTexture(Phaser.Utils.Array.GetRandom(this._obsKeys)); // tipo 8-bit al azar
+          spr.clearTint();
+        } else {
+          spr.setTint(Phaser.Utils.Array.GetRandom(PLANET_COLORS));
+        }
+        spr._spin = Phaser.Math.FloatBetween(-2, 2);
       }
       spr.angle += spr._spin;
-      // Objetos sincronizados con la musica: laten en cada beat.
-      spr.setScale(spr.scaleX * (1 + this._pulse * 0.2));
+      // Mini zoom + mini vibracion al ritmo de la musica.
+      spr.setScale(spr.scaleX * (1 + this._pulse * 0.28));
+      spr.x += (Math.random() - 0.5) * this._pulse * 6;
+      spr.y += (Math.random() - 0.5) * this._pulse * 6;
     }
   }
 
