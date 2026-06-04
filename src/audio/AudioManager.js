@@ -186,14 +186,14 @@ export class AudioManager {
 
     // Acid bass: entra después (intensity > 0.42), domina en drop.
     const acidVol = isDrop
-      ? 0.75
+      ? 0.95
       : state.intensity > 0.42
         ? Math.min(0.55, (state.intensity - 0.42) * 1.6)
         : 0;
     this.acidBus.gain.setTargetAtTime(acidVol, now, 0.1);
 
     // Lead supersaw: SOLO en el drop, a tope.
-    const leadVol = isDrop ? 0.65 : 0;
+    const leadVol = isDrop ? 0.9 : 0;
     this.leadBus.gain.setTargetAtTime(leadVol, now, 0.15);
 
     // Sub-bass: MASIVO en drop, nada antes (excepto un fizz al final del build).
@@ -216,7 +216,7 @@ export class AudioManager {
 
     // ---------- DISTORSIÓN POR GLITCH ----------
     const glitchAttn = 1 - state.glitch * 0.4;
-    const masterTarget = (isDrop ? 1.0 : 0.85) * glitchAttn;
+    const masterTarget = (isDrop ? 1.3 : 0.95) * glitchAttn;
     this.master.gain.setTargetAtTime(masterTarget, now, 0.04);
 
     // ---------- SECUENCIADOR ----------
@@ -242,8 +242,10 @@ export class AudioManager {
 
     // KICK en cada negra (four-on-the-floor). Es el corazón del techno.
     if (beat) this._playKick(time);
-    // HARDTECHNO: en el DROP, kick rodante tambien en los off-beats (mas duro).
+    // HARDTECHNO: en el DROP, kick rodante en off-beats (mas duro).
     if (isDrop && offBeat) this._playKick(time);
+    // En el pico del DROP, rolls de kick a 1/16 = estallido relentless.
+    if (isDrop && GameState.intensity > 0.8 && s % 2 === 1) this._playKick(time);
 
     // HI-HAT CLOSED en cada step impar (semicorcheas).
     if (s % 2 === 1) this._playHat(time, false);
@@ -507,7 +509,7 @@ export class AudioManager {
     crashFilter.type = 'highpass';
     crashFilter.frequency.value = 5000;
     const crashEnv = this.ctx.createGain();
-    crashEnv.gain.setValueAtTime(0.6, t);
+    crashEnv.gain.setValueAtTime(1.0, t);
     crashEnv.gain.exponentialRampToValueAtTime(0.0001, t + 1.2);
     crash.connect(crashFilter);
     crashFilter.connect(crashEnv);
@@ -521,7 +523,7 @@ export class AudioManager {
     impact.frequency.setValueAtTime(110, t);
     impact.frequency.exponentialRampToValueAtTime(30, t + 0.6);
     const impactEnv = this.ctx.createGain();
-    impactEnv.gain.setValueAtTime(1.2, t);
+    impactEnv.gain.setValueAtTime(1.9, t);
     impactEnv.gain.exponentialRampToValueAtTime(0.0001, t + 0.7);
     impact.connect(impactEnv);
     impactEnv.connect(this.master);
@@ -536,7 +538,7 @@ export class AudioManager {
     punchFilter.type = 'lowpass';
     punchFilter.frequency.value = 600;
     const punchEnv = this.ctx.createGain();
-    punchEnv.gain.setValueAtTime(0.7, t);
+    punchEnv.gain.setValueAtTime(1.1, t);
     punchEnv.gain.exponentialRampToValueAtTime(0.0001, t + 0.4);
     punch.connect(punchFilter);
     punchFilter.connect(punchEnv);

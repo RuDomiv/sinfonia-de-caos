@@ -25,8 +25,8 @@ export const CONFIG = {
 
   // --- Estabilidad (condición de derrota) ---
   stabilityMax: 100,
-  collisionDamage: 14,     // estabilidad perdida por golpe
-  stabilityRegen: 6,       // estabilidad recuperada por segundo
+  collisionDamage: 17,     // estabilidad perdida por golpe (mas duro)
+  stabilityRegen: 4,       // estabilidad recuperada por segundo (menos perdon)
 
   // --- Puntaje ---
   scorePerSecond: 10,
@@ -37,7 +37,7 @@ export const CONFIG = {
   persp: {
     zFar: 5.0,      // profundidad de aparición (lejos, pequeño)
     zNear: 0.55,    // profundidad de "cámara": al cruzarla, desaparece
-    focal: 0.8,     // escala = focal / z  → más grande al acercarse
+    focal: 1.0,     // escala = focal / z  → más grande al acercarse (OBJETOS MAS GRANDES)
     spreadX: 0.45,  // dispersión horizontal (fracción del ancho)
     spreadY: 0.45,  // dispersión vertical (fracción del alto)
     hitScale: 0.55, // solo hay colisión cuando el obstáculo es así de grande
@@ -45,11 +45,11 @@ export const CONFIG = {
 
   // --- DIFICULTAD (escala con la intensidad; sube fuerte en el DROP) ---
   diff: {
-    spawnStart: 1.0,   // segundos entre obstáculos al inicio (fácil)
-    spawnEnd: 0.16,    // segundos entre obstáculos al final (difícil)
-    zSpeedStart: 1.1,  // velocidad de acercamiento al inicio
-    zSpeedEnd: 4.2,    // velocidad de acercamiento al final
-    exponent: 1.5,     // >1 = la dificultad se dispara cerca del final
+    spawnStart: 0.85,  // segundos entre obstáculos al inicio
+    spawnEnd: 0.12,    // segundos entre obstáculos al final (MAS DIFICIL)
+    zSpeedStart: 1.25, // velocidad de acercamiento al inicio
+    zSpeedEnd: 5.2,    // velocidad de acercamiento al final (MAS RAPIDO)
+    exponent: 1.7,     // >1 = la dificultad se dispara cerca del final
     orbInterval: 1.5,  // segundos entre orbes
   },
 };
