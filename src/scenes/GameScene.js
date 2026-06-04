@@ -1,14 +1,16 @@
 // ============================================================
 //  GAMESCENE — Orquestador + MECÁNICAS.   👤 DUEÑO: Persona 1 (Motor)
 //
-//  Responsabilidades:
-//   - Avanzar la línea de tiempo (elapsed, progress, phase, intensity, bpm).
-//   - Mover nave, generar obstáculos y orbes, detectar colisiones.
-//   - ESCRIBIR en GameState y EMITIR eventos.
-//   - Instanciar los managers de Audio y Visual/UI (1 línea cada uno).
+//  Modo de juego: TÚNEL EN PERSPECTIVA (estilo Star Wars).
+//   - La nave está al centro y se mueve por TODA la pantalla.
+//   - Los obstáculos nacen en el punto de fuga (centro), lejos y
+//     pequeños, y se acercan creciendo hasta pasar por la cámara.
+//   - La nave solo ESQUIVA lo que llega; no avanza.
+//   - Dificultad sube con la intensidad y se dispara en el DROP.
+//
+//  ESCRIBE en GameState y EMITE eventos. Pantalla completa (responsive).
 //
 //  ⚠️ Persona 2 y 3: NO editen este archivo. Trabajen en sus managers.
-//     Si necesitan un evento o dato nuevo, pídanlo y lo agrego aquí.
 // ============================================================
 
 import Phaser from 'phaser';
@@ -25,35 +27,39 @@ export default class GameScene extends Phaser.Scene {
   }
 
   preload() {
-    // Persona 2 carga aquí sus audios (ver AudioManager.preload).
-    AudioManager.preload(this);
+    AudioManager.preload(this); // Persona 2 carga aquí sus audios.
   }
 
   create() {
     resetState();
     GameState.running = true;
 
+    // Limpia suscripciones viejas del EventBus (evita fugas al reiniciar con R).
+    EventBus.removeAllListeners();
+
     // --- Texturas simples generadas por código (sin assets externos) ---
-    this._makeTexture('ship', 34, 22, 0x00ffff);
-    this._makeTexture('obstacle', 26, 60, 0xff2266);
-    this._makeCircleTexture('orb', 9, 0xffee44);
+    this._makeShipTexture('ship', 56, 0x00ffff);
+    this._makeObstacleTexture('obstacle', 112, 0xff2266);
+    this._makeCircleTexture('orb', 22, 0xffee44);
 
-    // --- Managers de los otros 2 (cada uno se auto-suscribe al EventBus) ---
+    // --- Managers de los otros 2 (se auto-suscriben al EventBus) ---
     this.visuals = new VisualManager(this);   // Persona 3
-    this.audio = new AudioManager(this);       // Persona 2
-    this.hud = new HUD(this);                   // Persona 3
+    this.audio = new AudioManager(this);        // Persona 2
+    this.hud = new HUD(this);                    // Persona 3
 
-    // --- Jugador ---
-    this.player = this.physics.add.sprite(120, CONFIG.height / 2, 'ship');
-    this.player.body.allowGravity = false;
-    this.player.setCollideWorldBounds(true);
+    // --- Punto de fuga / centro ---
+    this.W = this.scale.width;
+    this.H = this.scale.height;
 
-    // --- Grupos ---
-    this.obstacles = this.physics.add.group();
-    this.orbs = this.physics.add.group();
+    // --- Nave (se mueve manualmente por toda la pantalla) ---
+    this.player = this.add.image(this.W / 2, this.H / 2, 'ship').setDepth(1000);
 
-    this.physics.add.overlap(this.player, this.obstacles, this._onCollision, null, this);
-    this.physics.add.overlap(this.player, this.orbs, this._onOrb, null, this);
+    // --- Listas de objetos en perspectiva ---
+    this.obstacles = [];
+    this.orbs = [];
+    this._obsTimer = 0;
+    this._orbTimer = 0;
+    this._invUntil = 0; // invencibilidad tras golpe
 
     // --- Controles ---
     this.cursors = this.input.keyboard.createCursorKeys();
@@ -64,19 +70,29 @@ export default class GameScene extends Phaser.Scene {
       right: Phaser.Input.Keyboard.KeyCodes.D,
     });
 
-    // --- Spawners (la frecuencia se ajusta con la intensidad) ---
-    this._obstacleTimer = 0;
-    this._orbTimer = 0;
+    // --- DEBUG (pruebas de Persona 1): saltar en la línea de tiempo ---
+    // 1 = inicio | 2 = empieza el DROP (1:00) | 3 = casi el final (1:55)
+    this.input.keyboard.on('keydown-ONE', () => { GameState.elapsed = 0; });
+    this.input.keyboard.on('keydown-TWO', () => { GameState.elapsed = CONFIG.buildEnd; });
+    this.input.keyboard.on('keydown-THREE', () => { GameState.elapsed = CONFIG.duration - 5; });
+
+    // Reposicionar al cambiar tamaño de ventana.
+    this.scale.on('resize', this._onResize, this);
+    this.events.once('shutdown', () => this.scale.off('resize', this._onResize, this));
   }
 
   update(time, delta) {
     if (!GameState.running) return;
-    const dt = delta / 1000;
+    const dt = Math.min(delta / 1000, 0.05);
+    this.W = this.scale.width;
+    this.H = this.scale.height;
 
     this._advanceTimeline(dt);
-    this._handleInput();
+    if (!GameState.running) return; // por si terminó (victoria/derrota)
+
+    this._moveShip(dt);
     this._spawn(dt);
-    this._scroll(dt);
+    this._updateObjects(dt);
 
     EventBus.emit(EVENTS.TICK, GameState); // Audio y Visual/UI reaccionan
   }
@@ -86,12 +102,9 @@ export default class GameScene extends Phaser.Scene {
     GameState.elapsed += dt;
     GameState.progress = Math.min(GameState.elapsed / CONFIG.duration, 1);
 
-    // Recuperación del glitch de colisión
     GameState.glitch = Math.max(0, GameState.glitch - CONFIG.glitchRecovery * dt);
-    // Regeneración de estabilidad
     GameState.stability = Math.min(CONFIG.stabilityMax, GameState.stability + CONFIG.stabilityRegen * dt);
 
-    // intensity = curva del tiempo (build 0→0.65, drop 0.65→1) menos el glitch
     const p = GameState.progress;
     let target;
     if (p < 0.5) target = (p / 0.5) * 0.65;
@@ -99,14 +112,12 @@ export default class GameScene extends Phaser.Scene {
     GameState.intensity = Phaser.Math.Clamp(target - GameState.glitch, 0, 1);
     GameState.bpm = Math.round(CONFIG.bpmBase + GameState.intensity * (CONFIG.bpmMax - CONFIG.bpmBase));
 
-    // Cambio de fase
     const prev = GameState.phase;
     let next;
     if (GameState.elapsed >= CONFIG.duration) next = PHASE.COMPLETE;
     else if (GameState.elapsed >= CONFIG.buildEnd) next = PHASE.DROP;
     else if (GameState.elapsed < 8) next = PHASE.CALM;
     else next = PHASE.BUILD;
-
     if (next !== prev) {
       GameState.phase = next;
       EventBus.emit(EVENTS.PHASE_CHANGE, { from: prev, to: next });
@@ -118,83 +129,166 @@ export default class GameScene extends Phaser.Scene {
     GameState.score += CONFIG.scorePerSecond * dt;
   }
 
-  _handleInput() {
-    const speed = 320;
+  _moveShip(dt) {
+    const speed = 600;
     let vx = 0, vy = 0;
-    if (this.cursors.up.isDown || this.wasd.up.isDown) vy = -speed;
-    if (this.cursors.down.isDown || this.wasd.down.isDown) vy = speed;
     if (this.cursors.left.isDown || this.wasd.left.isDown) vx = -speed;
     if (this.cursors.right.isDown || this.wasd.right.isDown) vx = speed;
-    this.player.setVelocity(vx, vy);
+    if (this.cursors.up.isDown || this.wasd.up.isDown) vy = -speed;
+    if (this.cursors.down.isDown || this.wasd.down.isDown) vy = speed;
+    const mx = this.player.displayWidth / 2;
+    const my = this.player.displayHeight / 2;
+    this.player.x = Phaser.Math.Clamp(this.player.x + vx * dt, mx, this.W - mx);
+    this.player.y = Phaser.Math.Clamp(this.player.y + vy * dt, my, this.H - my);
+
+    // parpadeo durante invencibilidad
+    this.player.setAlpha(GameState.elapsed < this._invUntil
+      ? (Math.floor(GameState.elapsed * 20) % 2 ? 0.3 : 1)
+      : 1);
   }
 
+  // ---------- SPAWNS (dificultad escala con la intensidad) ----------
   _spawn(dt) {
-    // Cuanto mayor la intensidad, más obstáculos y más rápido.
-    const obsInterval = Phaser.Math.Linear(1.4, 0.45, GameState.intensity);
-    this._obstacleTimer += dt;
-    if (this._obstacleTimer >= obsInterval) {
-      this._obstacleTimer = 0;
-      const y = Phaser.Math.Between(40, CONFIG.height - 40);
-      const o = this.obstacles.create(CONFIG.width + 30, y, 'obstacle');
-      o.body.allowGravity = false;
+    const diff = Math.pow(GameState.intensity, CONFIG.diff.exponent); // 0..1
+    const interval = Phaser.Math.Linear(CONFIG.diff.spawnStart, CONFIG.diff.spawnEnd, diff);
+
+    this._obsTimer += dt;
+    if (this._obsTimer >= interval) {
+      this._obsTimer = 0;
+      this._spawnObstacle();
+      // En el DROP, a veces salen varios a la vez → mucho más difícil.
+      if (GameState.phase === PHASE.DROP && Math.random() < diff * 0.7) this._spawnObstacle();
+      if (GameState.phase === PHASE.DROP && Math.random() < diff * 0.35) this._spawnObstacle();
     }
 
     this._orbTimer += dt;
-    if (this._orbTimer >= 1.6) {
+    if (this._orbTimer >= CONFIG.diff.orbInterval) {
       this._orbTimer = 0;
-      const y = Phaser.Math.Between(40, CONFIG.height - 40);
-      const orb = this.orbs.create(CONFIG.width + 30, y, 'orb');
-      orb.body.allowGravity = false;
+      this._spawnOrb();
     }
   }
 
-  _scroll(dt) {
-    const speed = Phaser.Math.Linear(160, 460, GameState.intensity);
-    this.obstacles.getChildren().forEach((o) => {
-      o.x -= speed * dt;
-      if (o.x < -40) o.destroy();
-    });
-    this.orbs.getChildren().forEach((o) => {
-      o.x -= speed * dt;
-      if (o.x < -40) o.destroy();
+  _spawnObstacle() {
+    const angle = Math.random() * Math.PI * 2;
+    const radius = Phaser.Math.FloatBetween(0.32, 1.0);
+    const sprite = this.add.image(this.W / 2, this.H / 2, 'obstacle');
+    this.obstacles.push({
+      sprite,
+      wx: Math.cos(angle) * radius,
+      wy: Math.sin(angle) * radius,
+      z: CONFIG.persp.zFar,
+      speedMul: Phaser.Math.FloatBetween(0.85, 1.15),
     });
   }
 
-  _onCollision(player, obstacle) {
-    obstacle.destroy();
+  _spawnOrb() {
+    const angle = Math.random() * Math.PI * 2;
+    const radius = Phaser.Math.FloatBetween(0.35, 1.0);
+    const sprite = this.add.image(this.W / 2, this.H / 2, 'orb');
+    this.orbs.push({
+      sprite,
+      wx: Math.cos(angle) * radius,
+      wy: Math.sin(angle) * radius,
+      z: CONFIG.persp.zFar,
+      speedMul: 1,
+    });
+  }
+
+  // ---------- ACTUALIZAR OBJETOS EN PERSPECTIVA ----------
+  _updateObjects(dt) {
+    const P = CONFIG.persp;
+    const cx = this.W / 2, cy = this.H / 2;
+    const spreadX = this.W * P.spreadX;
+    const spreadY = this.H * P.spreadY;
+    const zSpeed = Phaser.Math.Linear(
+      CONFIG.diff.zSpeedStart, CONFIG.diff.zSpeedEnd,
+      Math.pow(GameState.intensity, CONFIG.diff.exponent)
+    );
+
+    // Obstáculos
+    for (let i = this.obstacles.length - 1; i >= 0; i--) {
+      const o = this.obstacles[i];
+      o.z -= zSpeed * o.speedMul * dt;
+      if (o.z <= P.zNear) { o.sprite.destroy(); this.obstacles.splice(i, 1); continue; }
+
+      const scale = P.focal / o.z;
+      o.sprite.setPosition(cx + (o.wx * spreadX) / o.z, cy + (o.wy * spreadY) / o.z);
+      o.sprite.setScale(scale);
+      o.sprite.setDepth(Math.round(1000 - o.z * 100));
+      o.sprite.setAlpha(Phaser.Math.Clamp(1.15 - o.z * 0.14, 0.25, 1));
+
+      if (scale > P.hitScale && GameState.elapsed >= this._invUntil && this._overlapsShip(o.sprite)) {
+        o.sprite.destroy(); this.obstacles.splice(i, 1);
+        this._hit(o);
+      }
+    }
+
+    // Orbes (se recogen al tocarlos)
+    for (let i = this.orbs.length - 1; i >= 0; i--) {
+      const o = this.orbs[i];
+      o.z -= zSpeed * dt;
+      if (o.z <= P.zNear) { o.sprite.destroy(); this.orbs.splice(i, 1); continue; }
+
+      const scale = P.focal / o.z;
+      o.sprite.setPosition(cx + (o.wx * spreadX) / o.z, cy + (o.wy * spreadY) / o.z);
+      o.sprite.setScale(scale);
+      o.sprite.setDepth(Math.round(1000 - o.z * 100));
+
+      if (scale > 0.45 && this._overlapsShip(o.sprite)) {
+        o.sprite.destroy(); this.orbs.splice(i, 1);
+        GameState.score += CONFIG.scorePerOrb;
+        EventBus.emit(EVENTS.ORB, { x: o.sprite.x, y: o.sprite.y });
+      }
+    }
+  }
+
+  _overlapsShip(sprite) {
+    const dx = Math.abs(sprite.x - this.player.x);
+    const dy = Math.abs(sprite.y - this.player.y);
+    const ow = sprite.displayWidth * 0.5 * 0.8;
+    const oh = sprite.displayHeight * 0.5 * 0.8;
+    const pw = this.player.displayWidth * 0.5 * 0.55;
+    const ph = this.player.displayHeight * 0.5 * 0.55;
+    return dx < ow + pw && dy < oh + ph;
+  }
+
+  _hit(o) {
     GameState.glitch = Math.min(1, GameState.glitch + CONFIG.collisionGlitch);
     GameState.stability -= CONFIG.collisionDamage;
-    EventBus.emit(EVENTS.COLLISION, { x: player.x, y: player.y });
+    this._invUntil = GameState.elapsed + CONFIG.iFrames;
+    EventBus.emit(EVENTS.COLLISION, { x: this.player.x, y: this.player.y });
   }
 
-  _onOrb(player, orb) {
-    orb.destroy();
-    GameState.score += CONFIG.scorePerOrb;
-    EventBus.emit(EVENTS.ORB, { x: player.x, y: player.y });
+  _onResize() {
+    // Mantener la nave dentro de los nuevos límites.
+    if (this.player) {
+      const mx = this.player.displayWidth / 2;
+      const my = this.player.displayHeight / 2;
+      this.player.x = Phaser.Math.Clamp(this.player.x, mx, this.scale.width - mx);
+      this.player.y = Phaser.Math.Clamp(this.player.y, my, this.scale.height - my);
+    }
   }
 
   _win() {
     if (GameState.gameOver) return;
     GameState.running = false;
     EventBus.emit(EVENTS.GAME_WIN, { score: Math.floor(GameState.score) });
-    this._endScreen('¡SINFONÍA COMPLETA!', '#44ff88',
-      'Mantuviste el ritmo hasta el final.');
+    this._endScreen('¡SINFONÍA COMPLETA!', '#44ff88', 'Mantuviste el ritmo hasta el final.');
   }
 
   _gameOver() {
     GameState.gameOver = true;
     GameState.running = false;
     EventBus.emit(EVENTS.GAME_OVER, { score: Math.floor(GameState.score) });
-    this._endScreen('LA CANCIÓN COLAPSÓ', '#ff4466',
-      'Demasiado caos rompió la melodía.');
+    this._endScreen('LA CANCIÓN COLAPSÓ', '#ff4466', 'Demasiado caos rompió la melodía.');
   }
 
   _endScreen(title, color, subtitle) {
-    const cx = CONFIG.width / 2, cy = CONFIG.height / 2;
-    this.add.text(cx, cy - 60, title, { fontSize: '46px', color, fontStyle: 'bold' }).setOrigin(0.5);
-    this.add.text(cx, cy, subtitle, { fontSize: '18px', color: '#ffffff' }).setOrigin(0.5);
-    this.add.text(cx, cy + 40, 'Puntaje: ' + Math.floor(GameState.score), { fontSize: '24px', color: '#ffee44' }).setOrigin(0.5);
-    this.add.text(cx, cy + 90, 'Presiona R para reiniciar', { fontSize: '18px', color: '#aaaaaa' }).setOrigin(0.5);
+    const cx = this.scale.width / 2, cy = this.scale.height / 2;
+    this.add.text(cx, cy - 70, title, { fontSize: '52px', color, fontStyle: 'bold' }).setOrigin(0.5).setDepth(2000);
+    this.add.text(cx, cy - 10, subtitle, { fontSize: '20px', color: '#ffffff' }).setOrigin(0.5).setDepth(2000);
+    this.add.text(cx, cy + 35, 'Puntaje: ' + Math.floor(GameState.score), { fontSize: '26px', color: '#ffee44' }).setOrigin(0.5).setDepth(2000);
+    this.add.text(cx, cy + 90, 'Presiona R para reiniciar', { fontSize: '18px', color: '#aaaaaa' }).setOrigin(0.5).setDepth(2000);
     this.input.keyboard.once('keydown-R', () => {
       EventBus.emit(EVENTS.RESET);
       this.scene.restart();
@@ -202,14 +296,33 @@ export default class GameScene extends Phaser.Scene {
   }
 
   // ---------- helpers de texturas ----------
-  _makeTexture(key, w, h, color) {
+  _makeShipTexture(key, size, color) {
     const g = this.make.graphics({ x: 0, y: 0, add: false });
-    g.fillStyle(color); g.fillRect(0, 0, w, h);
-    g.generateTexture(key, w, h); g.destroy();
+    g.fillStyle(color);
+    g.beginPath();
+    g.moveTo(size / 2, 0);
+    g.lineTo(size, size);
+    g.lineTo(size / 2, size * 0.75);
+    g.lineTo(0, size);
+    g.closePath();
+    g.fillPath();
+    g.generateTexture(key, size, size);
+    g.destroy();
+  }
+  _makeObstacleTexture(key, size, color) {
+    const g = this.make.graphics({ x: 0, y: 0, add: false });
+    g.fillStyle(color);
+    g.fillRect(0, 0, size, size);
+    g.lineStyle(4, 0xffffff, 0.9);
+    g.strokeRect(0, 0, size, size);
+    g.generateTexture(key, size, size);
+    g.destroy();
   }
   _makeCircleTexture(key, r, color) {
     const g = this.make.graphics({ x: 0, y: 0, add: false });
-    g.fillStyle(color); g.fillCircle(r, r, r);
-    g.generateTexture(key, r * 2, r * 2); g.destroy();
+    g.fillStyle(color);
+    g.fillCircle(r, r, r);
+    g.generateTexture(key, r * 2, r * 2);
+    g.destroy();
   }
 }
