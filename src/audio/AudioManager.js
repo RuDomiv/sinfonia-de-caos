@@ -173,22 +173,22 @@ export class AudioManager {
     this.kickBus.gain.setTargetAtTime(kickVol, now, 0.08);
 
     // Hi-hats: entran cuando intensity > 0.12.
-    const hatVol = state.intensity > 0.12
-      ? Math.min(0.45, (state.intensity - 0.12) * 0.9)
+    const hatVol = state.intensity > 0.06
+      ? Math.min(0.5, (state.intensity - 0.06) * 1.1)
       : 0;
     this.hatBus.gain.setTargetAtTime(hatVol, now, 0.1);
 
     // Snare/clap: entra a mitad del build (intensity > 0.32).
-    const snareVol = state.intensity > 0.32
-      ? Math.min(0.55, (state.intensity - 0.32) * 1.6)
+    const snareVol = state.intensity > 0.2
+      ? Math.min(0.6, (state.intensity - 0.2) * 1.9)
       : 0;
     this.snareBus.gain.setTargetAtTime(snareVol, now, 0.1);
 
     // Acid bass: entra después (intensity > 0.42), domina en drop.
     const acidVol = isDrop
       ? 0.95
-      : state.intensity > 0.42
-        ? Math.min(0.55, (state.intensity - 0.42) * 1.6)
+      : state.intensity > 0.28
+        ? Math.min(0.6, (state.intensity - 0.28) * 1.9)
         : 0;
     this.acidBus.gain.setTargetAtTime(acidVol, now, 0.1);
 
@@ -202,12 +202,12 @@ export class AudioManager {
 
     // ---------- RISER (últimos 8s del build-up) ----------
     const elapsed = state.elapsed;
-    const riserStart = CONFIG.buildEnd - 8;   // 52s
+    const riserStart = CONFIG.buildEnd - 14;  // riser largo = mas tension
     const riserEnd = CONFIG.buildEnd;          // 60s
     if (!isDrop && elapsed > riserStart) {
       const p = Math.min(1, (elapsed - riserStart) / (riserEnd - riserStart));
       // Volumen sube exponencialmente
-      this.riserGain.gain.setTargetAtTime(p * p * 0.5, now, 0.05);
+      this.riserGain.gain.setTargetAtTime(p * p * 0.75, now, 0.05);
       // Highpass sube de 400Hz → 6000Hz (sensación de "tensión que sube")
       this.riserFilter.frequency.setTargetAtTime(400 + p * 5600, now, 0.05);
     } else {
@@ -272,6 +272,11 @@ export class AudioManager {
       const noteIdx = (s / 4) % LEAD_PATTERN.length;
       const freq = LEAD_PATTERN[noteIdx];
       this._playLead(time, freq);
+    }
+    // SINTETIZADORES extra en el DROP: arpegio supersaw 1 octava arriba.
+    if (isDrop && offBeat) {
+      const f = LEAD_PATTERN[(s / 2) % LEAD_PATTERN.length] * 2;
+      this._playLead(time, f);
     }
   }
 

@@ -10,8 +10,8 @@
 
 export const CONFIG = {
   // --- Línea de tiempo maestra (en segundos) ---
-  duration: 120,   // duración total del juego: 2 minutos
-  buildEnd: 60,    // 0–60s = build (de calma a intenso) | 60–120s = drop
+  duration: 80,    // duración total del juego
+  buildEnd: 28,    // 0–28s = build (mas corto) | 28–80s = drop
 
   // --- BPM (derivado de la intensidad) ---
   bpmBase: 90,
