@@ -138,7 +138,7 @@ export class VisualManager {
   // Nave 8-bit estilo arcade (gris, cabina azul, acentos rojos, motor amarillo).
   _alienShipTexture(key) {
     this._replace(key);
-    const px = 4, g = this._newG();
+    const px = 7, g = this._newG();
     const R = (x, y, w, h, c) => { g.fillStyle(c, 1); g.fillRect(x * px, y * px, w * px, h * px); };
     const H = 0xb8c0cc, H2 = 0x8a93a3, D = 0x4a4f5a, COCK = 0x32b6ff, RED = 0xd83a4a, YEL = 0xffe23a;
     R(6, 0, 1, 2, D);                 // nariz
@@ -415,30 +415,44 @@ export class VisualManager {
     if (to === PHASE.COMPLETE) this.scene.cameras.main.flash(700, 80, 255, 160);
   }
 
-  // La nave ATRAVIESA un agujero negro y la galaxia se vuelve vívida.
+  // Secuencia del DROP: la nave es absorbida por un agujero negro,
+  // pantalla en NEGRO 2s, aparece "ERROR 404" y ahi arranca el drop vivido.
   _blackHoleDrop() {
     const s = this.scene, cam = s.cameras.main;
-    const hole = s.add.image(this.W / 2, this.H / 2, 'vm_hole').setDepth(65).setBlendMode('ADD').setScale(0.05).setAlpha(0);
+    const cx = this.W / 2, cy = this.H / 2;
+    const FONT = '"Courier New", monospace';
 
-    // succión: zoom hacia adentro + giro del agujero
-    cam.zoomTo(1.18, 700, 'Cubic.easeIn');
-    s.tweens.add({ targets: hole, scale: 3.2, alpha: 1, angle: 220, duration: 700, ease: 'Cubic.easeIn' });
+    // Overlay negro que cubre TODO (incluido el HUD).
+    const black = s.add.rectangle(0, 0, this.W, this.H, 0x000000, 1)
+      .setOrigin(0, 0).setDepth(150).setScrollFactor(0).setAlpha(0);
 
-    // al "cruzarlo": flash blanco, la galaxia se vuelve colorida, expulsión
-    s.time.delayedCall(700, () => {
-      cam.flash(420, 255, 255, 255);
-      cam.shake(260, 0.012);
-      this._vividTarget = 1;          // ← la galaxia se vuelve vívida
-      cam.zoomTo(1.0, 600, 'Cubic.easeOut');
-      s.tweens.add({ targets: hole, scale: 8, alpha: 0, angle: 360, duration: 650, ease: 'Cubic.easeOut', onComplete: () => hole.destroy() });
-      this._vignettePulse(0xff3ca6, 0.8, 700);
+    // Agujero negro creciendo desde el centro (la nave es absorbida).
+    const hole = s.add.image(cx, cy, 'vm_hole').setDepth(149).setBlendMode('ADD').setScale(0.05).setAlpha(0);
+    cam.zoomTo(1.3, 1000, 'Cubic.easeIn');
+    s.tweens.add({ targets: hole, scale: 5, alpha: 1, angle: 360, duration: 1000, ease: 'Cubic.easeIn' });
+    s.tweens.add({ targets: black, alpha: 1, duration: 1000, ease: 'Cubic.easeIn' });
 
-      // texto "¡DROP!" épico
-      const txt = s.add.text(this.W / 2, this.H / 2, '¡DROP!', { fontSize: '92px', color: '#ff5ea8', fontStyle: 'bold' })
-        .setOrigin(0.5).setDepth(90).setScale(0.2).setAlpha(0);
-      s.tweens.add({
-        targets: txt, scale: 1, alpha: 1, duration: 260, ease: 'Back.easeOut',
-        onComplete: () => s.tweens.add({ targets: txt, alpha: 0, scale: 1.4, duration: 700, delay: 300, onComplete: () => txt.destroy() }),
+    // Absorbida -> TODO NEGRO 2s -> ERROR 404 -> arranca el drop.
+    s.time.delayedCall(1050, () => {
+      hole.destroy();
+      cam.zoomTo(1.0, 10);
+      s.time.delayedCall(2000, () => {
+        const err = s.add.text(cx, cy, 'ERROR 404', { fontFamily: FONT, fontSize: '96px', color: '#ff2b4a', fontStyle: 'bold' })
+          .setOrigin(0.5).setDepth(152).setScrollFactor(0).setAlpha(0).setStroke('#220006', 8);
+        const sub = s.add.text(cx, cy + 70, 'SIGNAL CORRUPTED', { fontFamily: FONT, fontSize: '22px', color: '#ff7a8a', fontStyle: 'bold' })
+          .setOrigin(0.5).setDepth(152).setScrollFactor(0).setAlpha(0);
+        // parpadeo glitch del error
+        s.tweens.add({ targets: [err, sub], alpha: 1, duration: 110, yoyo: true, repeat: 5, hold: 90,
+          onComplete: () => {
+            err.destroy(); sub.destroy();
+            // COMIENZA EL DROP: galaxia vivida + flash.
+            this._vividTarget = 1;
+            cam.flash(550, 255, 255, 255);
+            cam.shake(320, 0.015);
+            this._vignettePulse(0x00e5ff, 0.9, 900);
+            s.tweens.add({ targets: black, alpha: 0, duration: 550, onComplete: () => black.destroy() });
+          },
+        });
       });
     });
   }

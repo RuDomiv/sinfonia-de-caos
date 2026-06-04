@@ -37,18 +37,18 @@ export const CONFIG = {
   persp: {
     zFar: 5.0,      // profundidad de aparición (lejos, pequeño)
     zNear: 0.55,    // profundidad de "cámara": al cruzarla, desaparece
-    focal: 1.0,     // escala = focal / z  → más grande al acercarse (OBJETOS MAS GRANDES)
-    spreadX: 0.45,  // dispersión horizontal (fracción del ancho)
-    spreadY: 0.45,  // dispersión vertical (fracción del alto)
+    focal: 1.35,    // escala = focal / z  → TODO MAS GRANDE al acercarse
+    spreadX: 0.55,  // dispersión horizontal (vienen mas abiertos = mas dificil)
+    spreadY: 0.55,  // dispersión vertical
     hitScale: 0.55, // solo hay colisión cuando el obstáculo es así de grande
   },
 
   // --- DIFICULTAD (escala con la intensidad; sube fuerte en el DROP) ---
   diff: {
-    spawnStart: 0.85,  // segundos entre obstáculos al inicio
-    spawnEnd: 0.12,    // segundos entre obstáculos al final (MAS DIFICIL)
-    zSpeedStart: 1.25, // velocidad de acercamiento al inicio
-    zSpeedEnd: 5.2,    // velocidad de acercamiento al final (MAS RAPIDO)
+    spawnStart: 1.6,   // MENOS objetos al inicio
+    spawnEnd: 0.55,    // MENOS objetos al final (pero grandes y dificiles)
+    zSpeedStart: 0.8,  // mas LENTO al inicio
+    zSpeedEnd: 2.6,    // mas LENTO al final
     exponent: 1.7,     // >1 = la dificultad se dispara cerca del final
     orbInterval: 1.5,  // segundos entre orbes
   },
