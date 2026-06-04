@@ -11,6 +11,7 @@
 //     Si necesitan un evento o dato nuevo, pídanlo y lo agrego aquí.
 // ============================================================
 
+import Phaser from 'phaser';
 import { CONFIG, PHASE } from '../core/config.js';
 import { GameState, resetState } from '../core/GameState.js';
 import { EventBus, EVENTS } from '../core/EventBus.js';
@@ -31,6 +32,9 @@ export default class GameScene extends Phaser.Scene {
   create() {
     resetState();
     GameState.running = true;
+
+    // Limpia suscripciones viejas del EventBus (evita fugas al reiniciar con R).
+    EventBus.removeAllListeners();
 
     // --- Texturas simples generadas por código (sin assets externos) ---
     this._makeTexture('ship', 34, 22, 0x00ffff);
@@ -66,6 +70,13 @@ export default class GameScene extends Phaser.Scene {
     // --- Spawners (la frecuencia se ajusta con la intensidad) ---
     this._obstacleTimer = 0;
     this._orbTimer = 0;
+
+    // --- DEBUG (solo pruebas de Persona 1): saltar en la línea de tiempo ---
+    // Tecla 1 = inicio | 2 = empieza el DROP (1:00) | 3 = casi el final (1:55)
+    // Quitar antes de la demo final si quieren (es inofensivo).
+    this.input.keyboard.on('keydown-ONE', () => { GameState.elapsed = 0; });
+    this.input.keyboard.on('keydown-TWO', () => { GameState.elapsed = CONFIG.buildEnd; });
+    this.input.keyboard.on('keydown-THREE', () => { GameState.elapsed = CONFIG.duration - 5; });
   }
 
   update(time, delta) {

@@ -1,30 +1,24 @@
 // ============================================================
 //  VISUALMANAGER — Estética neón sincronizada con la música.
-//  👤 DUEÑO: Persona 3 (Visual / UI)
+//  👤 DUEÑO: Persona 3 (Visual / UI)   —   ⏳ AÚN SIN IMPLEMENTAR
 //
-//  REGLA DE ORO: solo LEES GameState.intensity / phase.
-//  Las visuales deben "respirar" con la intensidad (mismo valor
-//  que usa el audio → quedan sincronizadas automáticamente).
-//  En colisión: VIBRACIÓN de pantalla (camera shake) + flash.
+//  Persona 1 dejó esto como LIENZO EN BLANCO a propósito.
+//  Aquí van TODOS los efectos visuales (fondo, partículas, brillo,
+//  flash y vibración en colisión, zoom-punch en el DROP, etc.).
+//
+//  REGLA DE ORO: solo LEES GameState (vía el payload de TICK).
+//  El valor maestro es state.intensity (0..1): haz que TODO
+//  "respire" con él para quedar sincronizado con el audio.
 // ============================================================
 
 import { EventBus, EVENTS } from '../core/EventBus.js';
-import { CONFIG, PHASE } from '../core/config.js';
+// import { CONFIG, PHASE } from '../core/config.js';
 
 export class VisualManager {
   constructor(scene) {
     this.scene = scene;
 
-    // Fondo base (rectángulo que cambiará de color con la intensidad).
-    this.bg = scene.add.rectangle(0, 0, CONFIG.width, CONFIG.height, 0x12022a)
-      .setOrigin(0).setDepth(-10);
-
-    // Capa de flash para colisiones.
-    this.flash = scene.add.rectangle(0, 0, CONFIG.width, CONFIG.height, 0xff2266)
-      .setOrigin(0).setDepth(50).setAlpha(0);
-
-    // TODO Persona 3: partículas que rodean la nave, grid neón de fondo, etc.
-
+    // El Motor ya emite estos eventos. Implementa los handlers cuando quieras.
     EventBus.on(EVENTS.TICK, this.onTick, this);
     EventBus.on(EVENTS.COLLISION, this.onCollision, this);
     EventBus.on(EVENTS.ORB, this.onOrb, this);
@@ -32,30 +26,18 @@ export class VisualManager {
   }
 
   onTick(state) {
-    // El fondo se calienta con la intensidad (azul oscuro → magenta).
-    const r = Math.floor(0x12 + state.intensity * 0x90);
-    const g = Math.floor(0x02 + state.intensity * 0x10);
-    const b = Math.floor(0x2a + state.intensity * 0x40);
-    this.bg.setFillStyle(Phaser.Display.Color.GetColor(r, g, b));
-    // TODO: pulsar partículas / brillo de la nave al ritmo del bpm.
+    // TODO Persona 3: fondo/colores/partículas que crecen con state.intensity.
   }
 
   onCollision() {
-    // VIBRACIÓN visual pedida: sacude la cámara + flash rojo.
-    this.scene.cameras.main.shake(180, CONFIG.collisionShake);
-    this.flash.setAlpha(0.5);
-    this.scene.tweens.add({ targets: this.flash, alpha: 0, duration: 250 });
+    // TODO Persona 3: vibración (this.scene.cameras.main.shake) + flash rojo.
   }
 
   onOrb() {
-    // TODO: destello suave / partículas doradas.
+    // TODO Persona 3: destello dorado / partículas.
   }
 
   onPhaseChange({ to }) {
-    if (to === PHASE.DROP) {
-      // Momento WOW: un zoom-punch al entrar al drop.
-      this.scene.cameras.main.zoomTo(1.06, 120, 'Linear', true);
-      this.scene.cameras.main.flash(300, 120, 0, 200);
-    }
+    // TODO Persona 3: efecto WOW al entrar al DROP (zoom punch, flash, etc.).
   }
 }

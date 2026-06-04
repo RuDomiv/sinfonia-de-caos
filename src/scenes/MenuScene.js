@@ -3,6 +3,8 @@
 //  👤 DUEÑO: Persona 3 (Visual / UI)
 // ============================================================
 
+import Phaser from 'phaser';
+
 export default class MenuScene extends Phaser.Scene {
   constructor() {
     super('MenuScene');

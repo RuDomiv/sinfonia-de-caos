@@ -4,6 +4,23 @@
 
 ---
 
+## ✅ Estado actual (actualizado por Persona 1)
+
+**YA FUNCIONA y es jugable** (verificado en navegador):
+- ✔️ Pantalla de inicio con título e instrucciones → ENTER para jugar.
+- ✔️ Nave que se mueve (Flechas / WASD).
+- ✔️ Obstáculos que llegan con scroll y se generan en oleadas.
+- ✔️ Orbes dorados coleccionables (+puntaje).
+- ✔️ Colisiones que bajan la estabilidad.
+- ✔️ Línea de tiempo de 2 min (calma → build → drop → completa).
+- ✔️ HUD con puntaje y barras de intensidad/estabilidad.
+- ✔️ Pantallas de victoria/derrota + reinicio con **R**.
+
+**Falta (de tus compañeros):** 🔵 audio (Persona 2) · 🟢 efectos visuales (Persona 3).
+Esos archivos están como **stubs limpios** listos para implementar.
+
+---
+
 ## 🧠 La Idea (versión final)
 
 Un juego de **nave en scroll lateral** con una **línea de tiempo musical de 2 minutos**:
@@ -150,13 +167,13 @@ EventBus.on(EVENTS.COLLISION, ({ x, y }) => { /* distorsión / vibración */ });
 | Demo y comunicación (90s) | 10 | Persona 3 | ⬜ |
 
 ### Requisitos obligatorios del reglamento
-- [ ] Pantalla inicial con instrucciones (`MenuScene`)
-- [ ] Cómo se juega + puntaje + condición de cierre visibles
-- [ ] Botón de reinicio (tecla **R**)
-- [ ] Momento WOW (el DROP audiovisual)
+- [x] Pantalla inicial con instrucciones (`MenuScene`) ✅ hecho por Persona 1
+- [x] Cómo se juega + puntaje + condición de cierre visibles ✅ hecho
+- [x] Botón de reinicio (tecla **R**) ✅ hecho
+- [ ] Momento WOW (el DROP audiovisual) — falta audio + visuales
 - [ ] IA con **Devin como principal** — documentar qué generó
 - [ ] Transparencia: anotar TODAS las herramientas usadas (ver abajo)
-- [ ] Template 100% propio (no partimos de un repo open source) ✅ este proyecto es nuestro
+- [x] Template 100% propio (no partimos de un repo open source) ✅ este proyecto es nuestro
 
 ---
 
@@ -252,14 +269,58 @@ Ejemplos: `git commit -m "motor: drop más difícil"` · `git commit -m "visual:
 
 ---
 
-## 🚀 Empezar Ahora
+## ▶️ Cómo CORRER y PROBAR el juego (léelo, es fácil)
 
+### Paso a paso (cada vez que vas a trabajar)
 ```bash
-cd juego-hackathon
-npm run dev          # → http://localhost:5173  (ábranlo en Chrome)
+# 1. Entra a la carpeta del proyecto
+cd sinfonia-de-caos      # (o juego-hackathon si es la copia local de Persona 1)
+
+# 2. Solo la PRIMERA vez tras clonar: instala dependencias
+npm install
+
+# 3. Levanta el servidor de desarrollo
+npm run dev
+```
+Verás algo como:
+```
+  VITE v8  ready in 800 ms
+  ➜  Local:   http://localhost:5173/
 ```
 
-> El esqueleto **ya corre y es jugable** (nave, obstáculos, orbes, fases, HUD, vibración al chocar, victoria/derrota, reinicio). Cada persona ahora **profundiza su parte** sobre esta base.
+### 4. Abre el juego en **Google Chrome**
+Ve a 👉 **http://localhost:5173**
+
+### 5. Cómo jugar para probar
+- En la pantalla de inicio: presiona **ENTER**.
+- Mueve la nave con **Flechas** o **WASD**.
+- Esquiva los **rectángulos rojos**, recoge los **círculos dorados**.
+- Para terminar: deja que pasen 2 min (ganas) o choca hasta vaciar la estabilidad (pierdes).
+- Reinicia con **R**.
+
+### 🐞 Teclas de DEBUG (solo para probar rápido, Persona 1)
+Como el juego dura 2 minutos, para no esperar puedes saltar en el tiempo:
+| Tecla | Salta a |
+|---|---|
+| **1** | Inicio (calma) |
+| **2** | Empieza el DROP (minuto 1:00) |
+| **3** | Casi el final (1:55) — para probar la pantalla de victoria |
+
+> 💡 **HMR (recarga automática):** mientras `npm run dev` esté corriendo, cada vez que guardas un archivo el juego se actualiza solo en el navegador. No necesitas reiniciar nada.
+
+> ⚠️ Si ves la pantalla en negro o algo no carga: abre la consola de Chrome con **F12** → pestaña *Console* y revisa si hay un error en rojo (casi siempre es un `import` que falta).
+
+---
+
+## 🚀 Resumen rápido
+
+```bash
+cd sinfonia-de-caos
+npm install      # solo la 1ª vez
+npm run dev      # → http://localhost:5173 (en Chrome)
+```
+
+> El esqueleto **ya corre y es jugable**. Cada persona ahora **profundiza su parte** sobre esta base, tocando **solo sus archivos**.
 
 Archivos del contrato (ya listos, no tocar sin avisar):
 [config.js](juego-hackathon/src/core/config.js) · [GameState.js](juego-hackathon/src/core/GameState.js) · [EventBus.js](juego-hackathon/src/core/EventBus.js)
