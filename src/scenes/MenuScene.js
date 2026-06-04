@@ -110,14 +110,23 @@ export default class MenuScene extends Phaser.Scene {
 
   _makeHoleTex(key, S) {
     if (this.textures.exists(key)) this.textures.remove(key);
-    const c = S / 2, g = this.make.graphics({ x: 0, y: 0, add: false });
-    const E = (w, h, col, a = 1) => { g.fillStyle(col, a); g.fillEllipse(c, c, w, h); };
-    g.fillStyle(0xfff3c8, 0.4); g.fillRect(c - 5, 4, 10, S - 8);
-    g.fillStyle(0xfffbe8, 0.85); g.fillRect(c - 2, 12, 4, S - 24);
-    E(S*0.97, S*0.42, 0x240910); E(S*0.88, S*0.37, 0x4d0d1a); E(S*0.78, S*0.32, 0x7e1222);
-    E(S*0.67, S*0.27, 0xb91f2b); E(S*0.56, S*0.225, 0xe8401f); E(S*0.46, S*0.185, 0xff7a18);
-    E(S*0.37, S*0.15, 0xffb22e); E(S*0.30, S*0.12, 0xffd84a); E(S*0.25, S*0.10, 0xfff0b0);
-    E(S*0.205, S*0.165, 0xffe79a); g.fillStyle(0x000000, 1); g.fillEllipse(c, c, S*0.17, S*0.135);
+    const c = S / 2, TAU = Math.PI * 2, g = this.make.graphics({ x: 0, y: 0, add: false });
+    for (let r = c; r > c * 0.45; r -= 3) { g.fillStyle(0x16265f, 0.018); g.fillCircle(c, c, r); }
+    const ARM = [0x2b5cff, 0x00d0ff, 0x6a2cff, 0xff5ea8, 0x9af6ff];
+    for (let arm = 0; arm < 2; arm++) {
+      const base = (arm / 2) * TAU;
+      for (let t = 0; t < 210; t++) {
+        const ang = base + t * 0.085;
+        const rad = 7 + t * (c * 0.82 / 210);
+        const col = ARM[(t >> 4) % ARM.length];
+        const a = Math.max(0.05, 0.55 * (1 - rad / c));
+        g.fillStyle(col, a);
+        g.fillCircle(c + Math.cos(ang) * rad, c + Math.sin(ang) * rad * 0.9, 5.5 * (1 - t / 320) + 1.6);
+      }
+    }
+    for (let r = c * 0.3; r > 0; r -= 2) { g.fillStyle(0x9fe8ff, 0.5 * (1 - r / (c * 0.3))); g.fillCircle(c, c, r); }
+    g.fillStyle(0xfff0c0, 0.95); g.fillCircle(c, c, c * 0.2);
+    g.fillStyle(0x000000, 1); g.fillCircle(c, c, c * 0.15);
     g.generateTexture(key, S, S); g.destroy();
   }
 }

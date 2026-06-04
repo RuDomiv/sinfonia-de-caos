@@ -58,8 +58,9 @@ export class VisualManager {
     this._softTexture('vm_soft', 32);
     this._starTileTexture('vm_stars_far', 256, 40, 1.0, 0.5);
     this._starTileTexture('vm_stars_near', 256, 70, 1.8, 0.9);
-    this._nebulaTexture('vm_neb_muted', NEB_MUTED, 26, 0.5);
-    this._nebulaTexture('vm_neb_vivid', NEB_VIVID, 34, 0.85);
+    this._nebulaTexture('vm_neb_muted', NEB_MUTED, 30, 0.55);
+    this._nebulaTexture('vm_neb_vivid', NEB_VIVID, 40, 0.9);
+    this._galaxyTexture('vm_galaxy', 128);
     this._blackHoleTexture('vm_hole', 256);
 
     // Reemplazo de placeholders del Motor por arte 8-bit.
@@ -101,45 +102,73 @@ export class VisualManager {
     g.generateTexture(key, S, S); g.destroy();
   }
 
-  // Nebulosa a pantalla completa: nubes suaves de colores.
+  // Nebulosa a pantalla completa: nubes GRANDES y muy suaves (sin bordes duros).
   _nebulaTexture(key, palette, blobs, maxA) {
     if (this.scene.textures.exists(key)) return;
     const { W, H } = this;
     const g = this._newG();
     for (let n = 0; n < blobs; n++) {
       const cx = Phaser.Math.Between(0, W), cy = Phaser.Math.Between(0, H);
-      const R = Phaser.Math.Between(70, 200);
+      const R = Phaser.Math.Between(180, 460);
       const col = palette[n % palette.length];
-      for (let r = R; r > 0; r -= 5) {
-        g.fillStyle(col, maxA * (1 - r / R) * 0.05);
+      for (let r = R; r > 0; r -= 4) {
+        g.fillStyle(col, maxA * Math.pow(1 - r / R, 1.9) * 0.045);
         g.fillCircle(cx, cy, r);
       }
     }
     g.generateTexture(key, W, H); g.destroy();
   }
 
-  // Agujero negro pixel-art: disco de acrecion (maroon->rojo->naranja->amarillo),
-  // anillo de fotones brillante, horizonte negro y dos jets de luz.
+  // Galaxia suave (bordes 100% transparentes) que se tine por instancia.
+  // Reemplaza al uso de la nebulosa rectangular -> elimina los "cuadrados".
+  _galaxyTexture(key, S) {
+    if (this.scene.textures.exists(key)) return;
+    const c = S / 2, g = this._newG();
+    for (let r = c; r > 0; r -= 2) {
+      g.fillStyle(0xffffff, Math.pow(1 - r / c, 1.8) * 0.10);
+      g.fillCircle(c, c, r);
+    }
+    for (let arm = 0; arm < 2; arm++) {
+      const base = arm * Math.PI;
+      for (let t = 0; t < 90; t++) {
+        const ang = base + t * 0.16;
+        const rad = 4 + t * (c * 0.9 / 90);
+        g.fillStyle(0xffffff, 0.06 * (1 - rad / c));
+        g.fillCircle(c + Math.cos(ang) * rad, c + Math.sin(ang) * rad, 3);
+      }
+    }
+    g.generateTexture(key, S, S); g.destroy();
+  }
+
+  // Agujero negro = ESPIRAL galactica (azul/cyan/morado) con anillo brillante
+  // y horizonte negro. Bordes que se funden (sin cuadrados). Estilo de la foto.
   _blackHoleTexture(key, S) {
     this._replace(key);
-    const c = S / 2, g = this._newG();
-    const E = (w, h, col, a = 1) => { g.fillStyle(col, a); g.fillEllipse(c, c, w, h); };
-    // Jets: haces claros que cruzan el centro y sobresalen del disco.
-    g.fillStyle(0xfff3c8, 0.4); g.fillRect(c - 5, 4, 10, S - 8);
-    g.fillStyle(0xfffbe8, 0.85); g.fillRect(c - 2, 12, 4, S - 24);
-    // Disco de acrecion (de afuera hacia adentro).
-    E(S * 0.97, S * 0.42, 0x240910);
-    E(S * 0.88, S * 0.37, 0x4d0d1a);
-    E(S * 0.78, S * 0.32, 0x7e1222);
-    E(S * 0.67, S * 0.27, 0xb91f2b);
-    E(S * 0.56, S * 0.225, 0xe8401f);
-    E(S * 0.46, S * 0.185, 0xff7a18);
-    E(S * 0.37, S * 0.15, 0xffb22e);
-    E(S * 0.30, S * 0.12, 0xffd84a);
-    E(S * 0.25, S * 0.10, 0xfff0b0);
-    // Anillo de fotones + horizonte de sucesos (negro).
-    E(S * 0.205, S * 0.165, 0xffe79a);
-    g.fillStyle(0x000000, 1); g.fillEllipse(c, c, S * 0.17, S * 0.135);
+    const c = S / 2, g = this._newG(), TAU = Math.PI * 2;
+    // Halo exterior azul que funde los bordes.
+    for (let r = c; r > c * 0.45; r -= 3) { g.fillStyle(0x16265f, 0.018); g.fillCircle(c, c, r); }
+    // Brazos espirales neon.
+    const ARM = [0x2b5cff, 0x00d0ff, 0x6a2cff, 0xff5ea8, 0x9af6ff];
+    for (let arm = 0; arm < 2; arm++) {
+      const base = (arm / 2) * TAU;
+      for (let t = 0; t < 210; t++) {
+        const ang = base + t * 0.085;
+        const rad = 7 + t * (c * 0.82 / 210);
+        const col = ARM[(t >> 4) % ARM.length];
+        const a = Math.max(0.05, 0.55 * (1 - rad / c));
+        g.fillStyle(col, a);
+        g.fillCircle(c + Math.cos(ang) * rad, c + Math.sin(ang) * rad * 0.9, 5.5 * (1 - t / 320) + 1.6);
+      }
+    }
+    // Disco interno brillante (cyan -> crema).
+    for (let r = c * 0.3; r > 0; r -= 2) {
+      const t = r / (c * 0.3);
+      g.fillStyle(this._lerpColor(0xfff3c8, 0x00d0ff, t), 0.5 * (1 - t));
+      g.fillCircle(c, c, r);
+    }
+    // Anillo de fotones + horizonte de sucesos.
+    g.fillStyle(0xfff0c0, 0.95); g.fillCircle(c, c, c * 0.2);
+    g.fillStyle(0x000000, 1); g.fillCircle(c, c, c * 0.15);
     g.generateTexture(key, S, S); g.destroy();
   }
 
@@ -384,12 +413,12 @@ export class VisualManager {
     const startX = fromLeft ? -180 : this.W + 180;
     const endX = fromLeft ? this.W + 180 : -180;
     const dur = Phaser.Math.Between(10000, 17000); // lento => lejano
-    const g = s.add.image(startX, y, 'vm_neb_vivid').setDepth(-27).setBlendMode('ADD')
-      .setScale(Phaser.Math.FloatBetween(1.0, 2.4)).setAlpha(0);
+    const g = s.add.image(startX, y, 'vm_galaxy').setDepth(-27).setBlendMode('ADD')
+      .setScale(Phaser.Math.FloatBetween(1.6, 3.6)).setAlpha(0);
     g.setTint(Phaser.Utils.Array.GetRandom([0xff5ea8, 0x6a8bff, 0x9af6ff, 0xffd24a, 0xb96aff, 0x7cffb2]));
-    s.tweens.add({ targets: g, angle: g.angle + Phaser.Math.Between(20, 60), duration: dur });
+    s.tweens.add({ targets: g, angle: g.angle + Phaser.Math.Between(30, 90), duration: dur });
     s.tweens.add({ targets: g, x: endX, duration: dur, ease: 'Linear', onComplete: () => g.destroy() });
-    s.tweens.add({ targets: g, alpha: 0.35 + 0.3 * v, duration: dur * 0.3, yoyo: true, hold: dur * 0.4 });
+    s.tweens.add({ targets: g, alpha: 0.4 + 0.35 * v, duration: dur * 0.3, yoyo: true, hold: dur * 0.4 });
   }
 
   // Agujeros negros ESTATICOS (no se trasladan): solo giran, brillan y ATRAEN a la nave.
