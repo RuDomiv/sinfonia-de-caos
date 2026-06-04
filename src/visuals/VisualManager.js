@@ -22,7 +22,7 @@ import { EventBus, EVENTS } from '../core/EventBus.js';
 import { CONFIG, PHASE } from '../core/config.js';
 
 // Paleta de planetas (se tiñe cada obstáculo con uno de estos).
-const PLANET_COLORS = [0xff6a4a, 0x4ad6ff, 0xffc24a, 0xb96aff, 0x4affa0, 0xff5ea8, 0x6a8cff];
+const PLANET_COLORS = [0x00ffff, 0xff5ea8, 0xffe23a, 0xb96aff, 0x6a8bff, 0xff2bb0, 0x9af6ff];
 // Nebulosa apagada (inicio) y nebulosa vívida (tras el agujero negro).
 const NEB_MUTED = [0x141433, 0x1c2447, 0x281640, 0x14303a, 0x201038];
 const NEB_VIVID = [0x6a2cff, 0x00e5ff, 0xff3ca6, 0xffd24a, 0x2af0c0, 0x8a5cff];
@@ -426,6 +426,8 @@ export class VisualManager {
       if (p && h.t < h.life) {
         const dx = h.x - p.x, dy = h.y - p.y;
         const dist = Math.hypot(dx, dy) || 1;
+        const horizon = h.spr.displayWidth * 0.12;
+        if (dist < horizon) { this._shipKill(); return; } // entro al horizonte -> MUERE
         if (dist < h.radius) {
           const strength = (1 - dist / h.radius) * h.pull;
           p.x += (dx / dist) * strength * dt;
@@ -437,6 +439,29 @@ export class VisualManager {
         if (h.spr.alpha <= 0.02) { h.spr.destroy(); this._holes.splice(k, 1); }
       }
     }
+  }
+
+  // La nave entra al horizonte de sucesos del agujero negro: EXPLOTA y muere.
+  _shipKill() {
+    if (this._shipDying) return;
+    this._shipDying = true;
+    const s = this.scene, cam = s.cameras.main, p = s.player;
+    const x = p ? p.x : this.W / 2, y = p ? p.y : this.H / 2;
+    if (p) p.setVisible(false);
+    cam.shake(420, 0.03); cam.flash(280, 255, 120, 60);
+    if (this.dust && this.dust.explode) this.dust.explode(80, x, y);
+    const PAL = [0x00ffff, 0xff5ea8, 0xffe23a, 0xb96aff, 0xffffff];
+    for (let k = 0; k < 44; k++) {
+      const a = Math.random() * Math.PI * 2, r = Phaser.Math.Between(40, 280);
+      const frag = s.add.rectangle(x, y, Phaser.Math.Between(4, 10), Phaser.Math.Between(4, 10),
+        Phaser.Utils.Array.GetRandom(PAL)).setDepth(2100);
+      s.tweens.add({ targets: frag, x: x + Math.cos(a) * r, y: y + Math.sin(a) * r,
+        angle: Phaser.Math.Between(-360, 360), alpha: 0, duration: Phaser.Math.Between(500, 1000),
+        ease: 'Cubic.easeOut', onComplete: () => frag.destroy() });
+    }
+    const ring = s.add.image(x, y, 'vm_soft').setDepth(2099).setBlendMode('ADD').setTint(0x00ffff).setScale(0.2).setAlpha(0.95);
+    s.tweens.add({ targets: ring, scale: 7, alpha: 0, duration: 650, ease: 'Cubic.easeOut', onComplete: () => ring.destroy() });
+    if (s.killShip) s.killShip();
   }
 
   // Estrella fugaz que cruza el fondo de derecha a izquierda.
@@ -546,20 +571,37 @@ export class VisualManager {
     });
   }
 
-  // Estallido de estrellas + galaxias al entrar al drop ("todo se llena de estrellas").
+  // EXPLOSION DE ESTRELLAS del DROP: el momento que deja a todos boquiabiertos.
   _starBurst() {
-    const s = this.scene, cx = this.W / 2, cy = this.H / 2;
-    if (this.dust && this.dust.explode) this.dust.explode(160, cx, cy);
-    for (let k = 0; k < 14; k++) this._spawnDecor(1);
-    const STAR = [0xffffff, 0x9af6ff, 0xffd24a, 0xff5ea8, 0xb96aff];
-    for (let k = 0; k < 70; k++) {
+    const s = this.scene, cx = this.W / 2, cy = this.H / 2, cam = s.cameras.main;
+    const PAL = [0x00ffff, 0xff5ea8, 0xffe23a, 0xb96aff, 0x6a8bff, 0xffffff];
+    // Golpe de camara (punch).
+    cam.zoomTo(1.12, 160, 'Quad.easeOut');
+    s.time.delayedCall(200, () => cam.zoomTo(1.0, 700, 'Quad.easeOut'));
+    // Ondas expansivas concentricas.
+    for (let w = 0; w < 3; w++) {
+      const ring = s.add.image(cx, cy, 'vm_soft').setDepth(181).setBlendMode('ADD')
+        .setTint(PAL[w % PAL.length]).setScale(0.2).setAlpha(0.9);
+      s.tweens.add({ targets: ring, scale: 10 + w * 3, alpha: 0, duration: 900 + w * 250, delay: w * 110, ease: 'Cubic.easeOut', onComplete: () => ring.destroy() });
+    }
+    if (this.dust && this.dust.explode) this.dust.explode(220, cx, cy);
+    for (let k = 0; k < 16; k++) this._spawnDecor(1);
+    // Explosion de MUCHAS estrellas desde el centro.
+    for (let k = 0; k < 180; k++) {
       const a = Math.random() * Math.PI * 2;
-      const r = Phaser.Math.Between(40, Math.max(this.W, this.H) * 0.8);
-      const st = s.add.image(cx, cy, 'vm_soft').setDepth(-24).setBlendMode('ADD').setScale(0.1).setAlpha(0);
-      st.setTint(Phaser.Utils.Array.GetRandom(STAR));
-      s.tweens.add({ targets: st, x: cx + Math.cos(a) * r, y: cy + Math.sin(a) * r, alpha: 0.95, scale: Phaser.Math.FloatBetween(0.25, 0.5),
-        duration: 750, ease: 'Cubic.easeOut',
-        onComplete: () => s.tweens.add({ targets: st, alpha: 0, duration: 1500, onComplete: () => st.destroy() }) });
+      const r = Phaser.Math.Between(60, Math.max(this.W, this.H) * 0.95);
+      const st = s.add.image(cx, cy, 'vm_soft').setDepth(180).setBlendMode('ADD').setScale(0.08).setAlpha(0);
+      st.setTint(Phaser.Utils.Array.GetRandom(PAL));
+      s.tweens.add({ targets: st, x: cx + Math.cos(a) * r, y: cy + Math.sin(a) * r,
+        alpha: 1, scale: Phaser.Math.FloatBetween(0.2, 0.55), duration: Phaser.Math.Between(600, 950), ease: 'Cubic.easeOut',
+        onComplete: () => s.tweens.add({ targets: st, alpha: 0, duration: 1600, onComplete: () => st.destroy() }) });
+    }
+    // Destellos radiales (streaks de luz).
+    for (let k = 0; k < 28; k++) {
+      const a = Math.random() * Math.PI * 2, len = Phaser.Math.Between(140, 340);
+      const streak = s.add.image(cx, cy, 'vm_soft').setDepth(181).setBlendMode('ADD').setTint(Phaser.Utils.Array.GetRandom(PAL));
+      streak.setScale(0.04, 0.02).setAlpha(0.9).setRotation(a);
+      s.tweens.add({ targets: streak, scaleX: len / 32, x: cx + Math.cos(a) * len * 0.5, y: cy + Math.sin(a) * len * 0.5, alpha: 0, duration: 600, ease: 'Cubic.easeOut', onComplete: () => streak.destroy() });
     }
   }
 

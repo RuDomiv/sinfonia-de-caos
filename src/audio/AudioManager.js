@@ -74,13 +74,23 @@ export class AudioManager {
 
   _unlockOnGesture() {
     const resume = () => {
+      if (this._userPaused) return; // no re-activar si el jugador puso pausa
       if (this.ctx.state === 'suspended') this.ctx.resume();
+      if (this.ctx.state === 'running') {
+        window.removeEventListener('click', resume);
+        window.removeEventListener('keydown', resume);
+        window.removeEventListener('touchstart', resume);
+      }
     };
     window.addEventListener('click', resume);
     window.addEventListener('keydown', resume);
     window.addEventListener('touchstart', resume);
     resume();
   }
+
+  // Pausa/reanuda TODO el audio (lo usa GameScene con el menu de pausa).
+  pause() { this._userPaused = true; if (this.ctx && this.ctx.suspend) this.ctx.suspend(); }
+  resume() { this._userPaused = false; if (this.ctx && this.ctx.resume) this.ctx.resume(); }
 
   // Grafo: cada bus tiene su propio gain conectado al master.
   // Compresor antes del destination para que el drop "pegue" sin saturar.

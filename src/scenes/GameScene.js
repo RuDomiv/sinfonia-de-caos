@@ -76,6 +76,12 @@ export default class GameScene extends Phaser.Scene {
     this.input.keyboard.on('keydown-TWO', () => { GameState.elapsed = CONFIG.buildEnd; });
     this.input.keyboard.on('keydown-THREE', () => { GameState.elapsed = CONFIG.duration - 5; });
 
+    // --- PAUSA (boton clicable + tecla ESC / P) ---
+    this.paused = false;
+    this._buildPauseUI();
+    this.input.keyboard.on('keydown-ESC', () => this._togglePause());
+    this.input.keyboard.on('keydown-P', () => this._togglePause());
+
     // Reposicionar al cambiar tamaño de ventana.
     this.scale.on('resize', this._onResize, this);
     this.events.once('shutdown', () => this.scale.off('resize', this._onResize, this));
@@ -83,6 +89,7 @@ export default class GameScene extends Phaser.Scene {
 
   update(time, delta) {
     if (!GameState.running) return;
+    if (this.paused) return;
     const dt = Math.min(delta / 1000, 0.05);
     this.W = this.scale.width;
     this.H = this.scale.height;
@@ -259,6 +266,51 @@ export default class GameScene extends Phaser.Scene {
     EventBus.emit(EVENTS.COLLISION, { x: this.player.x, y: this.player.y });
   }
 
+  // ---------- PAUSA + MUERTE ----------
+  _buildPauseUI() {
+    const FONT = '"Courier New", monospace';
+    const W = this.scale.width, H = this.scale.height;
+    this.pauseBtn = this.add.text(W - 16, 46, '[ PAUSA ]', {
+      fontFamily: FONT, fontSize: '18px', color: '#00ffff', fontStyle: 'bold',
+    }).setOrigin(1, 0).setDepth(3000).setScrollFactor(0).setStroke('#003344', 4)
+      .setInteractive({ useHandCursor: true });
+    this.pauseBtn.on('pointerdown', () => this._togglePause());
+
+    this.pauseOverlay = this.add.container(0, 0).setDepth(2990).setVisible(false);
+    const bg = this.add.rectangle(0, 0, W, H, 0x05010f, 0.82).setOrigin(0, 0);
+    const t = this.add.text(W / 2, H / 2 - 30, 'PAUSA', {
+      fontFamily: FONT, fontSize: '64px', color: '#00ffff', fontStyle: 'bold',
+    }).setOrigin(0.5).setStroke('#aa008a', 8).setShadow(4, 4, '#ff2bb0', 0, true, true);
+    const hint = this.add.text(W / 2, H / 2 + 40, 'ESC / P / CLICK para continuar', {
+      fontFamily: FONT, fontSize: '18px', color: '#cfd0ff',
+    }).setOrigin(0.5);
+    this.pauseOverlay.add([bg, t, hint]);
+  }
+
+  _togglePause() {
+    if (!GameState.running || GameState.gameOver) return;
+    this.paused = !this.paused;
+    this.pauseOverlay.setVisible(this.paused);
+    if (this.pauseBtn) this.pauseBtn.setText(this.paused ? '[ SEGUIR ]' : '[ PAUSA ]');
+    if (this.paused) {
+      this.tweens.pauseAll();
+      this.time.paused = true;
+      if (this.audio && this.audio.pause) this.audio.pause();
+    } else {
+      this.tweens.resumeAll();
+      this.time.paused = false;
+      if (this.audio && this.audio.resume) this.audio.resume();
+    }
+  }
+
+  // La llama el VisualManager cuando la nave entra a un agujero negro.
+  killShip() {
+    if (!GameState.running || GameState.gameOver) return;
+    GameState.glitch = 1;
+    GameState.stability = 0;
+    this._gameOver();
+  }
+
   _onResize() {
     // Mantener la nave dentro de los nuevos límites.
     if (this.player) {
@@ -284,11 +336,15 @@ export default class GameScene extends Phaser.Scene {
   }
 
   _endScreen(title, color, subtitle) {
+    const FONT = '"Courier New", monospace';
     const cx = this.scale.width / 2, cy = this.scale.height / 2;
-    this.add.text(cx, cy - 70, title, { fontSize: '52px', color, fontStyle: 'bold' }).setOrigin(0.5).setDepth(2000);
-    this.add.text(cx, cy - 10, subtitle, { fontSize: '20px', color: '#ffffff' }).setOrigin(0.5).setDepth(2000);
-    this.add.text(cx, cy + 35, 'Puntaje: ' + Math.floor(GameState.score), { fontSize: '26px', color: '#ffee44' }).setOrigin(0.5).setDepth(2000);
-    this.add.text(cx, cy + 90, 'Presiona R para reiniciar', { fontSize: '18px', color: '#aaaaaa' }).setOrigin(0.5).setDepth(2000);
+    if (this.pauseBtn) this.pauseBtn.setVisible(false);
+    if (this.pauseOverlay) this.pauseOverlay.setVisible(false);
+    this.add.rectangle(0, 0, this.scale.width, this.scale.height, 0x05010f, 0.72).setOrigin(0, 0).setDepth(1999);
+    this.add.text(cx, cy - 70, title, { fontFamily: FONT, fontSize: '54px', color, fontStyle: 'bold' }).setOrigin(0.5).setDepth(2000).setStroke('#000018', 8);
+    this.add.text(cx, cy - 10, subtitle, { fontFamily: FONT, fontSize: '18px', color: '#cfd0ff' }).setOrigin(0.5).setDepth(2000);
+    this.add.text(cx, cy + 35, 'PUNTAJE: ' + Math.floor(GameState.score), { fontFamily: FONT, fontSize: '26px', color: '#ffee44', fontStyle: 'bold' }).setOrigin(0.5).setDepth(2000).setStroke('#5a4a00', 4);
+    this.add.text(cx, cy + 90, '> PRESIONA R PARA REINICIAR <', { fontFamily: FONT, fontSize: '18px', color: '#00ffff' }).setOrigin(0.5).setDepth(2000);
     this.input.keyboard.once('keydown-R', () => {
       EventBus.emit(EVENTS.RESET);
       this.scene.restart();
