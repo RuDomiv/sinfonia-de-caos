@@ -202,6 +202,56 @@ EventBus.on(EVENTS.COLLISION, ({ x, y }) => { /* distorsión / vibración */ });
 
 ---
 
+## 🐙 Repositorio Compartido (GitHub) — LÉELO ANTES DE EMPEZAR
+
+**Repo del equipo:** `https://github.com/RuDomiv/sinfonia-de-caos`
+
+### 1. Clonar el repo (una sola vez, cada integrante)
+```bash
+git clone https://github.com/RuDomiv/sinfonia-de-caos
+cd sinfonia-de-caos
+npm install          # instala Phaser, Vite, etc.
+npm run dev          # → http://localhost:5173 (ábranlo en Chrome)
+```
+
+### 2. Configura tu nombre (una sola vez)
+```bash
+git config user.name "Tu Nombre"
+git config user.email "tu-correo@ejemplo.com"
+```
+
+### 3. Flujo de trabajo para NO pisarse (¡importante con 3 personas!)
+
+Como **cada quien edita solo SUS archivos** (ver tabla de arriba), casi nunca habrá conflictos. Aun así, sigan SIEMPRE este ciclo:
+
+```bash
+# ── ANTES de empezar a trabajar y CADA 15 MIN ──
+git pull                       # traer lo último de tus compañeros
+
+# ── Cuando tengas algo que funcione ──
+git add .
+git commit -m "audio: capa base sonando"   # mensaje claro y corto
+git pull                       # por si alguien subió algo mientras tanto
+git push                       # publicar tu avance
+```
+
+> 💡 **Regla de oro:** `git pull` ANTES de `git push`. Si Git te avisa de un conflicto, **no entres en pánico**: avisa al equipo y resuélvanlo juntos (casi siempre es porque dos tocaron el mismo archivo, lo cual NO debería pasar si respetan la tabla de dueños).
+
+### 4. Convención de mensajes de commit
+Usen el prefijo de su área para que se entienda quién hizo qué:
+```
+motor:  ...   (Persona 1)
+audio:  ...   (Persona 2)
+visual: ...   (Persona 3)
+ui:     ...   (Persona 3)
+```
+Ejemplos: `git commit -m "motor: drop más difícil"` · `git commit -m "visual: partículas neón en la nave"`
+
+### 5. Publiquen seguido
+**Hagan `git push` cada 15 minutos** aunque sea un avance pequeño. Así, si a alguien se le rompe la máquina, no se pierde nada y el resto siempre tiene la última versión.
+
+---
+
 ## 🚀 Empezar Ahora
 
 ```bash
