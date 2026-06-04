@@ -8,6 +8,7 @@
 //  En colisión: VIBRACIÓN de pantalla (camera shake) + flash.
 // ============================================================
 
+import Phaser from 'phaser';
 import { EventBus, EVENTS } from '../core/EventBus.js';
 import { CONFIG, PHASE } from '../core/config.js';
 

@@ -11,6 +11,7 @@
 //     Si necesitan un evento o dato nuevo, pídanlo y lo agrego aquí.
 // ============================================================
 
+import Phaser from 'phaser';
 import { CONFIG, PHASE } from '../core/config.js';
 import { GameState, resetState } from '../core/GameState.js';
 import { EventBus, EVENTS } from '../core/EventBus.js';
