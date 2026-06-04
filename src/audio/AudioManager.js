@@ -242,6 +242,8 @@ export class AudioManager {
 
     // KICK en cada negra (four-on-the-floor). Es el corazón del techno.
     if (beat) this._playKick(time);
+    // HARDTECHNO: en el DROP, kick rodante tambien en los off-beats (mas duro).
+    if (isDrop && offBeat) this._playKick(time);
 
     // HI-HAT CLOSED en cada step impar (semicorcheas).
     if (s % 2 === 1) this._playHat(time, false);

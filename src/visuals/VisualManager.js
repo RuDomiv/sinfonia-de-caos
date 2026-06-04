@@ -30,8 +30,10 @@ const NEB_VIVID = [0x6a2cff, 0x00e5ff, 0xff3ca6, 0xffd24a, 0x2af0c0, 0x8a5cff];
 export class VisualManager {
   constructor(scene) {
     this.scene = scene;
-    this.W = CONFIG.width;
-    this.H = CONFIG.height;
+    // Motor responsive: el canvas llena la ventana. Tomamos el tamano
+    // real de la escena (CONFIG.width/height ya no existen).
+    this.W = scene.scale.width;
+    this.H = scene.scale.height;
 
     this._beat = 0;
     this._pulse = 0;
@@ -254,7 +256,7 @@ export class VisualManager {
 
     // Grading sutil + calor en el drop.
     this.grade.setFillStyle(accent);
-    this.grade.setAlpha(Math.max(0, i - 0.5) * 0.14 + v * 0.06 + pulse * 0.04 * i);
+    this.grade.setAlpha(Math.max(0, i - 0.35) * 0.14 + v * 0.06 + pulse * 0.1);
 
     // Halo de la nave alienígena.
     const p = this.scene.player;
@@ -280,18 +282,22 @@ export class VisualManager {
 
   // Da a cada planeta color/escala/giro propios y un hitbox circular justo.
   _decorateObstacles(dt) {
-    const grp = this.scene.obstacles;
-    if (!grp) return;
-    const kids = grp.getChildren();
-    for (const o of kids) {
-      if (!o._vmDecor) {
-        o._vmDecor = true;
-        o.setTint(Phaser.Utils.Array.GetRandom(PLANET_COLORS));
-        o._spin = Phaser.Math.FloatBetween(-1.4, 1.4);
-        o.setScale(Phaser.Math.FloatBetween(0.8, 1.2));
-        try { o.body.setCircle(o.width / 2); } catch (e) { /* sin física: ignora */ }
+    // El Motor guarda this.obstacles como ARRAY de { sprite, wx, wy, z }.
+    // (Antes era un grupo de fisica.) Decoramos el sprite de cada uno.
+    const list = this.scene.obstacles;
+    if (!Array.isArray(list)) return;
+    for (const o of list) {
+      const spr = o.sprite || o;
+      if (!spr || !spr.setTint) continue;
+      if (!spr._vmDecor) {
+        spr._vmDecor = true;
+        spr.setTint(Phaser.Utils.Array.GetRandom(PLANET_COLORS));
+        spr._spin = Phaser.Math.FloatBetween(-1.4, 1.4);
+        // No tocamos la escala: el Motor la controla cada frame (perspectiva).
       }
-      o.angle += o._spin;
+      spr.angle += spr._spin;
+      // Objetos sincronizados con la musica: laten en cada beat.
+      spr.setScale(spr.scaleX * (1 + this._pulse * 0.2));
     }
   }
 
