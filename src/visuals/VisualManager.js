@@ -366,21 +366,29 @@ export class VisualManager {
     }
   }
 
-  // Galaxias espirales y mini agujeros negros que aparecen/desaparecen en el fondo.
+  // Cuerpos celestes que CRUZAN el fondo lentamente (parallax = sensacion de viaje real).
+  // Galaxias espirales y agujeros negros lejanos, no manchas al azar.
   _spawnDecor(v) {
     const s = this.scene;
-    const x = Phaser.Math.Between(0, this.W), y = Phaser.Math.Between(0, this.H);
-    if (Math.random() < 0.4) {
-      const h = s.add.image(x, y, 'vm_hole').setDepth(-26)
-        .setScale(Phaser.Math.FloatBetween(0.25, 0.75)).setAlpha(0);
-      s.tweens.add({ targets: h, alpha: 0.55, duration: 1000, yoyo: true, hold: 1400, onComplete: () => h.destroy() });
-      s.tweens.add({ targets: h, angle: 360, duration: Phaser.Math.Between(5000, 11000), repeat: -1 });
+    const fromLeft = Math.random() < 0.5;
+    const y = Phaser.Math.Between(0, this.H);
+    const startX = fromLeft ? -160 : this.W + 160;
+    const endX = fromLeft ? this.W + 160 : -160;
+    const dur = Phaser.Math.Between(9000, 16000); // lento => lejano
+    let obj;
+    if (Math.random() < 0.35) {
+      obj = s.add.image(startX, y, 'vm_hole').setDepth(-26)
+        .setScale(Phaser.Math.FloatBetween(0.3, 0.85)).setAlpha(0);
+      s.tweens.add({ targets: obj, angle: 360, duration: Phaser.Math.Between(6000, 12000), repeat: -1 });
     } else {
-      const g = s.add.image(x, y, 'vm_neb_vivid').setDepth(-27).setBlendMode('ADD')
-        .setScale(Phaser.Math.FloatBetween(0.9, 2.2)).setAlpha(0);
-      g.setTint(Phaser.Utils.Array.GetRandom([0xff5ea8, 0x6a8bff, 0x9af6ff, 0xffd24a, 0xb96aff]));
-      s.tweens.add({ targets: g, alpha: 0.35 + 0.3 * v, angle: Phaser.Math.Between(-50, 50), duration: 1500, yoyo: true, hold: 1700, onComplete: () => g.destroy() });
+      obj = s.add.image(startX, y, 'vm_neb_vivid').setDepth(-27).setBlendMode('ADD')
+        .setScale(Phaser.Math.FloatBetween(1.0, 2.4)).setAlpha(0);
+      obj.setTint(Phaser.Utils.Array.GetRandom([0xff5ea8, 0x6a8bff, 0x9af6ff, 0xffd24a, 0xb96aff, 0x7cffb2]));
+      s.tweens.add({ targets: obj, angle: obj.angle + Phaser.Math.Between(20, 60), duration: dur });
     }
+    const maxA = (obj.texture.key === 'vm_hole') ? 0.6 : 0.35 + 0.3 * v;
+    s.tweens.add({ targets: obj, x: endX, duration: dur, ease: 'Linear', onComplete: () => obj.destroy() });
+    s.tweens.add({ targets: obj, alpha: maxA, duration: dur * 0.3, yoyo: true, hold: dur * 0.4 });
   }
 
   // Estrella fugaz que cruza el fondo de derecha a izquierda.
@@ -440,46 +448,71 @@ export class VisualManager {
     if (to === PHASE.COMPLETE) this.scene.cameras.main.flash(700, 80, 255, 160);
   }
 
-  // Secuencia del DROP: la nave es absorbida por un agujero negro,
-  // pantalla en NEGRO 2s, aparece "ERROR 404" y ahi arranca el drop vivido.
+  // Secuencia del DROP: el agujero negro ABSORBE la nave, pantalla en NEGRO 2s,
+  // aparece "ERROR 404" y luego TODO se llena de estrellas (drop galactico).
   _blackHoleDrop() {
     const s = this.scene, cam = s.cameras.main;
     const cx = this.W / 2, cy = this.H / 2;
     const FONT = '"Courier New", monospace';
+    const player = s.player;
 
-    // Overlay negro que cubre TODO (incluido el HUD).
     const black = s.add.rectangle(0, 0, this.W, this.H, 0x000000, 1)
       .setOrigin(0, 0).setDepth(150).setScrollFactor(0).setAlpha(0);
 
-    // Agujero negro creciendo desde el centro (la nave es absorbida).
+    // Agujero negro que crece y gira en el centro.
     const hole = s.add.image(cx, cy, 'vm_hole').setDepth(149).setBlendMode('ADD').setScale(0.05).setAlpha(0);
-    cam.zoomTo(1.3, 1000, 'Cubic.easeIn');
-    s.tweens.add({ targets: hole, scale: 5, alpha: 1, angle: 360, duration: 1000, ease: 'Cubic.easeIn' });
-    s.tweens.add({ targets: black, alpha: 1, duration: 1000, ease: 'Cubic.easeIn' });
+    cam.zoomTo(1.4, 1100, 'Cubic.easeIn');
+    s.tweens.add({ targets: hole, scale: 5.5, alpha: 1, angle: 480, duration: 1100, ease: 'Cubic.easeIn' });
+    s.tweens.add({ targets: black, alpha: 1, duration: 1100, ease: 'Cubic.easeIn' });
 
-    // Absorbida -> TODO NEGRO 2s -> ERROR 404 -> arranca el drop.
-    s.time.delayedCall(1050, () => {
+    // LA NAVE ES ABSORBIDA: un clon espirala hacia el agujero y se encoge.
+    if (player) {
+      player.setVisible(false);
+      const ghost = s.add.image(player.x, player.y, 'ship').setDepth(151);
+      s.tweens.add({ targets: ghost, x: cx, y: cy, scale: 0.04, angle: 900, alpha: 0.85,
+        duration: 1050, ease: 'Cubic.easeIn', onComplete: () => ghost.destroy() });
+    }
+
+    s.time.delayedCall(1150, () => {
       hole.destroy();
       cam.zoomTo(1.0, 10);
       s.time.delayedCall(2000, () => {
         const err = s.add.text(cx, cy, 'ERROR 404', { fontFamily: FONT, fontSize: '96px', color: '#ff2b4a', fontStyle: 'bold' })
           .setOrigin(0.5).setDepth(152).setScrollFactor(0).setAlpha(0).setStroke('#220006', 8);
-        const sub = s.add.text(cx, cy + 70, 'SIGNAL CORRUPTED', { fontFamily: FONT, fontSize: '22px', color: '#ff7a8a', fontStyle: 'bold' })
+        const sub = s.add.text(cx, cy + 70, 'REALIDAD CORRUPTA', { fontFamily: FONT, fontSize: '22px', color: '#ff7a8a', fontStyle: 'bold' })
           .setOrigin(0.5).setDepth(152).setScrollFactor(0).setAlpha(0);
-        // parpadeo glitch del error
         s.tweens.add({ targets: [err, sub], alpha: 1, duration: 110, yoyo: true, repeat: 5, hold: 90,
           onComplete: () => {
             err.destroy(); sub.destroy();
-            // COMIENZA EL DROP: galaxia vivida + flash.
+            if (player) player.setVisible(true);
+            // COMIENZA EL DROP: galaxia vivida + lluvia de estrellas.
             this._vividTarget = 1;
-            cam.flash(550, 255, 255, 255);
-            cam.shake(320, 0.015);
-            this._vignettePulse(0x00e5ff, 0.9, 900);
-            s.tweens.add({ targets: black, alpha: 0, duration: 550, onComplete: () => black.destroy() });
+            cam.flash(600, 190, 230, 255);
+            cam.shake(340, 0.016);
+            this._vignettePulse(0x00e5ff, 0.9, 950);
+            this._starBurst();
+            s.tweens.add({ targets: black, alpha: 0, duration: 750, onComplete: () => black.destroy() });
           },
         });
       });
     });
+  }
+
+  // Estallido de estrellas + galaxias al entrar al drop ("todo se llena de estrellas").
+  _starBurst() {
+    const s = this.scene, cx = this.W / 2, cy = this.H / 2;
+    if (this.dust && this.dust.explode) this.dust.explode(160, cx, cy);
+    for (let k = 0; k < 14; k++) this._spawnDecor(1);
+    const STAR = [0xffffff, 0x9af6ff, 0xffd24a, 0xff5ea8, 0xb96aff];
+    for (let k = 0; k < 70; k++) {
+      const a = Math.random() * Math.PI * 2;
+      const r = Phaser.Math.Between(40, Math.max(this.W, this.H) * 0.8);
+      const st = s.add.image(cx, cy, 'vm_soft').setDepth(-24).setBlendMode('ADD').setScale(0.1).setAlpha(0);
+      st.setTint(Phaser.Utils.Array.GetRandom(STAR));
+      s.tweens.add({ targets: st, x: cx + Math.cos(a) * r, y: cy + Math.sin(a) * r, alpha: 0.95, scale: Phaser.Math.FloatBetween(0.25, 0.5),
+        duration: 750, ease: 'Cubic.easeOut',
+        onComplete: () => s.tweens.add({ targets: st, alpha: 0, duration: 1500, onComplete: () => st.destroy() }) });
+    }
   }
 
   // Pulso de viñeta (marco de color que aparece y decae).

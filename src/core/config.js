@@ -37,9 +37,9 @@ export const CONFIG = {
   persp: {
     zFar: 5.0,      // profundidad de aparición (lejos, pequeño)
     zNear: 0.55,    // profundidad de "cámara": al cruzarla, desaparece
-    focal: 1.35,    // escala = focal / z  → TODO MAS GRANDE al acercarse
-    spreadX: 0.55,  // dispersión horizontal (vienen mas abiertos = mas dificil)
-    spreadY: 0.55,  // dispersión vertical
+    focal: 1.6,     // escala = focal / z  → OBSTACULOS MUCHO MAS GRANDES
+    spreadX: 0.62,  // mas abiertos = mas dificil de esquivar
+    spreadY: 0.62,  // dispersión vertical
     hitScale: 0.55, // solo hay colisión cuando el obstáculo es así de grande
   },
 
