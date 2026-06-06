@@ -4,8 +4,6 @@ import MenuScene from './scenes/MenuScene.js';
 
 const config = {
   type: Phaser.AUTO,
-  pixelArt: true,
-  roundPixels: true,
   parent: 'game',
   backgroundColor: '#05010f',
   scale: {
